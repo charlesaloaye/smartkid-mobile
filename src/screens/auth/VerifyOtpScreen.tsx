@@ -11,8 +11,16 @@ import { showToast } from '../../utils/toast';
 import { verifyOtpApi, resendOtpApi } from '../../api/endpoints';
 
 export default function VerifyOtpScreen({ route, navigation }: any) {
-  const { refreshUser } = useAuth();
+  const { refreshUser, logout } = useAuth();
   const email = route?.params?.email ?? '';
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -119,7 +127,7 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
         {/* Footer Navigation */}
         <Pressable
           style={styles.footer}
-          onPress={() => navigation.replace('Login')}
+          onPress={handleLogout}
         >
           <Text style={styles.footerText}>
             Wrong email? <Text style={styles.footerLink}>Back to Login</Text>

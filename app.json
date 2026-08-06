@@ -12,7 +12,8 @@
       "bundleIdentifier": "ng.smartkidtutor.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "ng.smartkidtutor.app",
