@@ -11,7 +11,7 @@ import { showToast } from '../../utils/toast';
 import { verifyOtpApi, resendOtpApi } from '../../api/endpoints';
 
 export default function VerifyOtpScreen({ route, navigation }: any) {
-  const { refreshUser, logout } = useAuth();
+  const { refreshUser, updateUser, logout } = useAuth();
   const email = route?.params?.email ?? '';
 
   const handleLogout = async () => {
@@ -43,7 +43,10 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
 
     setLoading(true);
     try {
-      await verifyOtpApi(otpCode.trim());
+      const res = await verifyOtpApi(otpCode.trim());
+      if (res.user) {
+        updateUser(res.user);
+      }
       await refreshUser();
       showToast.success('Email verified successfully! Welcome aboard.', 'Verified 🎉');
     } catch (e) {

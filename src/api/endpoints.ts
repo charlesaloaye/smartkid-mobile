@@ -40,7 +40,7 @@ export async function logoutParent() {
 }
 
 export async function verifyOtpApi(otp_code: string) {
-  const { data } = await api.post<{ message: string; email_verified: boolean }>('/verify-otp', { otp_code });
+  const { data } = await api.post<{ message: string; email_verified: boolean; user?: User }>('/verify-otp', { otp_code });
   return data;
 }
 
