@@ -7,6 +7,7 @@ import { MainTabs } from './MainTabs';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import VerifyOtpScreen from '../screens/auth/VerifyOtpScreen';
 import AddChildScreen from '../screens/auth/AddChildScreen';
 import PremiumScreen from '../screens/profile/PremiumScreen';
 import ChildProgressScreen from '../screens/home/ChildProgressScreen';
@@ -14,7 +15,7 @@ import ChildProgressScreen from '../screens/home/ChildProgressScreen';
 const Stack = createNativeStackNavigator();
 
 export function RootNavigator() {
-  const { isLoading, isAuthenticated, hasSeenOnboarding, authEntryScreen } = useAuth();
+  const { isLoading, isAuthenticated, hasSeenOnboarding, authEntryScreen, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -46,6 +47,14 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+      </Stack.Navigator>
+    );
+  }
+
+  if (isAuthenticated && !user?.email_verified_at) {
+    return (
+      <Stack.Navigator key="verify-otp" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} initialParams={{ email: user?.email }} />
       </Stack.Navigator>
     );
   }

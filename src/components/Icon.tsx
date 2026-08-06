@@ -6,7 +6,9 @@ export type IconName =
   | 'lock' | 'check' | 'chevron-right' | 'chevron-left' | 'star'
   | 'shield' | 'x' | 'bell' | 'sparkle' | 'phone-end' | 'card'
   | 'calendar' | 'arrow-right' | 'whatsapp' | 'logout' | 'plus'
-  | 'eye' | 'eye-off';
+  | 'eye' | 'eye-off' | 'alert-circle' | 'check-circle' | 'info' | 'alert-triangle'
+  | 'play' | 'pause' | 'volume'
+  | 'book-open' | 'trophy' | 'trending-up';
 
 type Props = {
   name: IconName;
@@ -67,6 +69,26 @@ export function Icon({ name, size = 20, color = '#1F2937' }: Props) {
       return <Feather name="eye" size={size} color={color} />;
     case 'eye-off':
       return <Feather name="eye-off" size={size} color={color} />;
+    case 'alert-circle':
+      return <Feather name="alert-circle" size={size} color={color} />;
+    case 'check-circle':
+      return <Feather name="check-circle" size={size} color={color} />;
+    case 'info':
+      return <Feather name="info" size={size} color={color} />;
+    case 'alert-triangle':
+      return <Feather name="alert-triangle" size={size} color={color} />;
+    case 'play':
+      return <Feather name="play" size={size} color={color} />;
+    case 'pause':
+      return <Feather name="pause" size={size} color={color} />;
+    case 'volume':
+      return <Feather name="volume-2" size={size} color={color} />;
+    case 'book-open':
+      return <Feather name="book-open" size={size} color={color} />;
+    case 'trophy':
+      return <Ionicons name="trophy-outline" size={size} color={color} />;
+    case 'trending-up':
+      return <Feather name="trending-up" size={size} color={color} />;
     default:
       return null;
   }

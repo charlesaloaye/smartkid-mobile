@@ -18,6 +18,8 @@ import {
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import Toast from 'react-native-toast-message';
+import { customToastConfig } from './src/components/ToastConfig';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -43,6 +45,7 @@ export default function App() {
         <NavigationContainer>
           <RootNavigator />
         </NavigationContainer>
+        <Toast config={customToastConfig} />
       </AuthProvider>
     </SafeAreaProvider>
   );

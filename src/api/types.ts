@@ -3,6 +3,8 @@ export type User = {
   name: string;
   email: string;
   role: 'parent' | 'admin';
+  email_verified_at?: string | null;
+  id_verified_at?: string | null;
 };
 
 export type Child = {
@@ -58,6 +60,33 @@ export type ChildDetail = {
   learning_time: string;
   confidence_score: string | null;
   insight: string | null;
+};
+
+export type PlanKey = 'starter' | 'family';
+
+export type PlanConfig = {
+  label: string;
+  amount: number; // kobo
+  interval: string;
+  child_limit: number;
+  trial_days: number;
+};
+
+export type SubscriptionSummary = {
+  plan: PlanKey | null;
+  status: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled';
+  has_active_access: boolean;
+  trial_ends_at: string | null;
+  current_period_ends_at: string | null;
+  cancel_at_period_end: boolean;
+  has_used_trial: boolean;
+  child_limit: number;
+  children_count: number;
+};
+
+export type SubscriptionResponse = {
+  subscription: SubscriptionSummary;
+  plans: Record<PlanKey, PlanConfig>;
 };
 
 export type ActivityItem = {

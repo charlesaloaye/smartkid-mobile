@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,7 +14,7 @@ import { Card } from '../../components/Card';
 import { colors, radii, shadow, type } from '../../theme';
 import { useAsync } from '../../utils/useAsync';
 import { fetchActivities } from '../../api/endpoints';
-import type { ActivityItem } from '../../api/types';
+import { EmptyState } from '../../components/EmptyState';
 
 type FilterType = 'all' | 'conversation' | 'milestone';
 
@@ -92,17 +93,23 @@ export default function ActivityScreen({ navigation }: any) {
           })}
         </View>
 
-        {/* Empty state */}
-        {!loading && filteredList.length === 0 && (
-          <Card style={styles.emptyCard}>
-            <View style={styles.emptyIconBg}>
-              <Icon name="chart" size={28} color={colors.teal} />
-            </View>
-            <Text style={styles.emptyTitle}>No activity recorded</Text>
-            <Text style={styles.emptyBody}>
-              Once tutoring sessions start on WhatsApp, questions and AI responses will appear here in real time.
+        {/* Loading Spinner to prevent UI flash */}
+        {loading && !data && (
+          <View style={{ paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colors.teal} />
+            <Text style={{ fontFamily: type.bodyMedium, fontSize: 13, color: colors.muted, marginTop: 12 }}>
+              Loading activity feed…
             </Text>
-          </Card>
+          </View>
+        )}
+
+        {/* Empty state */}
+        {!loading && data && filteredList.length === 0 && (
+          <EmptyState
+            icon="chart"
+            title="No activity recorded"
+            description="Once tutoring sessions start on WhatsApp, questions and AI responses will appear here in real time."
+          />
         )}
 
         {/* Activity Feed List */}

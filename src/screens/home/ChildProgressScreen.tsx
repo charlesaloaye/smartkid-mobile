@@ -7,6 +7,7 @@ import { Card } from '../../components/Card';
 import { colors, radii, type } from '../../theme';
 import { useAsync } from '../../utils/useAsync';
 import { fetchChildDetail } from '../../api/endpoints';
+import { EmptyState } from '../../components/EmptyState';
 
 function masteryLabel(score: number) {
   if (score >= 70) return 'Strong';
@@ -82,19 +83,30 @@ export default function ChildProgressScreen({ route, navigation }: any) {
           )}
 
           <Text style={styles.sectionLabel}>Strengths & focus areas</Text>
-          <Card>
-            {data.mastery.map((m) => (
-              <View key={m.name} style={styles.barRow}>
-                <View style={styles.barHead}>
-                  <Text style={styles.barName}>{m.name}</Text>
-                  <Text style={[styles.barTag, { color: masteryColor(m.score) }]}>{masteryLabel(m.score)}</Text>
+          {data.mastery && data.mastery.some((m) => m.score > 0) ? (
+            <Card>
+              {data.mastery.map((m) => (
+                <View key={m.name} style={styles.barRow}>
+                  <View style={styles.barHead}>
+                    <Text style={styles.barName}>{m.name}</Text>
+                    <Text style={[styles.barTag, { color: masteryColor(m.score) }]}>{masteryLabel(m.score)}</Text>
+                  </View>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: `${Math.max(4, m.score)}%`, backgroundColor: masteryColor(m.score) }]} />
+                  </View>
                 </View>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${Math.max(4, m.score)}%`, backgroundColor: masteryColor(m.score) }]} />
-                </View>
-              </View>
-            ))}
-          </Card>
+              ))}
+            </Card>
+          ) : (
+            <EmptyState
+              compact
+              icon="sparkle"
+              title="No learning data yet"
+              description="As your child asks questions and studies with Ada, subject strengths and progress metrics will appear here."
+              actionLabel="Start a chat"
+              onAction={() => navigation.navigate('Tutor', { childId })}
+            />
+          )}
 
           {badges.length > 0 && (
             <>

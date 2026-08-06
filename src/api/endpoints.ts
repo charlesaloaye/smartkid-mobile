@@ -5,8 +5,11 @@ import type {
   ChildDetail,
   DashboardResponse,
   Message,
+  PlanKey,
   SendMessageResponse,
   SendVoiceMessageResponse,
+  SubscriptionResponse,
+  SubscriptionSummary,
   User,
 } from './types';
 
@@ -34,6 +37,16 @@ export async function loginParent(payload: { email: string; password: string }) 
 
 export async function logoutParent() {
   await api.post('/logout');
+}
+
+export async function verifyOtpApi(otp_code: string) {
+  const { data } = await api.post<{ message: string; email_verified: boolean }>('/verify-otp', { otp_code });
+  return data;
+}
+
+export async function resendOtpApi() {
+  const { data } = await api.post<{ message: string; otp_code?: string }>('/resend-otp');
+  return data;
 }
 
 export async function fetchCurrentUser() {
@@ -112,5 +125,35 @@ export async function sendVoiceMessage(childId: number, audioUri: string) {
     form,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
+  return data;
+}
+
+export async function fetchSubscription() {
+  const { data } = await api.get<SubscriptionResponse>('/subscription');
+  return data;
+}
+
+export async function startTrial() {
+  const { data } = await api.post<{ message: string; subscription: SubscriptionSummary }>('/subscription/trial');
+  return data;
+}
+
+export async function checkoutSubscription(plan: PlanKey, callbackUrl: string) {
+  const { data } = await api.post<{ authorization_url: string; reference: string }>('/subscription/checkout', {
+    plan,
+    callback_url: callbackUrl,
+  });
+  return data;
+}
+
+export async function verifySubscriptionPayment(reference: string) {
+  const { data } = await api.post<{ status: string; subscription: SubscriptionSummary }>('/subscription/verify', {
+    reference,
+  });
+  return data;
+}
+
+export async function cancelSubscription() {
+  const { data } = await api.post<{ message: string; subscription: SubscriptionSummary }>('/subscription/cancel');
   return data;
 }

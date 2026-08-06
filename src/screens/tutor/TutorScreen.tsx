@@ -4,6 +4,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Speech from 'expo-speech';
+import { speakNigerian } from '../../utils/speechUtils';
 import { Icon } from '../../components/Icon';
 import { Card } from '../../components/Card';
 import { Pill } from '../../components/Pill';
@@ -26,8 +28,10 @@ import {
   sendVoiceMessage,
 } from '../../api/endpoints';
 import { extractErrorMessage } from '../../api/client';
+import { renderFormattedText } from '../../utils/formatText';
 import type { Child, Message } from '../../api/types';
 import { VoiceMode } from './VoiceMode';
+import { EmptyState } from '../../components/EmptyState';
 
 type ChatMessage = Message | { id: string; sender: 'system'; message: string };
 
@@ -44,7 +48,34 @@ export default function TutorScreen({ navigation, route }: any) {
   const [sendOnEnter, setSendOnEnter] = useState(true);
   const [insight, setInsight] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceLongTalk, setVoiceLongTalk] = useState(false);
+  const [isSwipingMic, setIsSwipingMic] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<number | string | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  const micPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+      onPanResponderGrant: () => {
+        setIsSwipingMic(true);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy < -15) {
+          setIsSwipingMic(true);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const isUpSwipe = gestureState.dy < -20;
+        setIsSwipingMic(false);
+        setVoiceLongTalk(isUpSwipe);
+        setVoiceOpen(true);
+      },
+      onPanResponderTerminate: () => {
+        setIsSwipingMic(false);
+      },
+    })
+  ).current;
 
   useEffect(() => {
     AsyncStorage.getItem('@send_on_enter').then((val) => {
@@ -128,9 +159,18 @@ export default function TutorScreen({ navigation, route }: any) {
     }
   };
 
-  const speakMessage = (text: string) => {
-    Speech.stop();
-    Speech.speak(text, { language: 'en-GB', rate: 0.95 });
+  const toggleSpeakMessage = (id: number | string, text: string) => {
+    if (speakingMsgId === id) {
+      Speech.stop();
+      setSpeakingMsgId(null);
+    } else {
+      Speech.stop();
+      setSpeakingMsgId(id);
+      speakNigerian(text, {
+        onDone: () => setSpeakingMsgId((current) => (current === id ? null : current)),
+        onError: () => setSpeakingMsgId((current) => (current === id ? null : current)),
+      });
+    }
   };
 
   const sendQuickReply = (text: string) => {
@@ -150,16 +190,13 @@ export default function TutorScreen({ navigation, route }: any) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={['top']}>
         <View style={styles.emptyWrap}>
-          <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
-            <View style={styles.emptyIcon}>
-              <Icon name="sparkle" size={24} color={colors.teal} />
-            </View>
-            <Text style={styles.emptyTitle}>Add a child to start chatting with Ada</Text>
-            <Text style={styles.emptyBody}>Once they're registered, you can chat by text or voice right here in the app.</Text>
-            <Pressable style={styles.emptyBtn} onPress={() => navigation.navigate('AddChild')}>
-              <Text style={styles.emptyBtnText}>Add a child</Text>
-            </Pressable>
-          </Card>
+          <EmptyState
+            icon="sparkle"
+            title="Add a child to chat with Ada"
+            description="Once registered, you can chat by text or voice right here in the app."
+            actionLabel="Add a child"
+            onAction={() => navigation.navigate('AddChild')}
+          />
         </View>
       </SafeAreaView>
     );
@@ -216,11 +253,12 @@ export default function TutorScreen({ navigation, route }: any) {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.introWrap}>
-              <Text style={styles.introText}>
-                Say hello to Ada — ask a question by text or tap the mic to talk. Everything here also reaches {activeChild?.name} on WhatsApp.
-              </Text>
-            </View>
+            <EmptyState
+              compact
+              icon="chat"
+              title={`Say hello to Ada 👋`}
+              description={`Ask a question by text or tap the mic to talk. Everything here also reaches ${activeChild?.name ?? 'your child'} on WhatsApp.`}
+            />
           }
           ListFooterComponent={
             !sending && messages.length > 0 && messages[messages.length - 1].sender === 'ai' ? (
@@ -241,12 +279,25 @@ export default function TutorScreen({ navigation, route }: any) {
             return (
               <View style={[styles.bubbleRow, isChild ? styles.bubbleRowEnd : styles.bubbleRowStart]}>
                 {!isChild && (
-                  <Pressable onPress={() => speakMessage(item.message)} style={styles.speakBtn} hitSlop={8}>
-                    <Icon name="mic" size={12} color={colors.teal} />
+                  <Pressable
+                    onPress={() => toggleSpeakMessage(item.id, item.message)}
+                    style={[styles.speakBtn, speakingMsgId === item.id && styles.speakBtnActive]}
+                    hitSlop={8}
+                    accessibilityLabel={speakingMsgId === item.id ? 'Pause reading message' : 'Play message out loud'}
+                  >
+                    <Icon
+                      name={speakingMsgId === item.id ? 'pause' : 'play'}
+                      size={11}
+                      color={speakingMsgId === item.id ? colors.amberDark : colors.teal}
+                    />
                   </Pressable>
                 )}
                 <View style={[styles.bubble, isChild ? styles.bubbleChild : styles.bubbleAi]}>
-                  <Text style={[styles.bubbleText, isChild && { color: colors.white }]}>{item.message}</Text>
+                  {renderFormattedText(
+                    item.message,
+                    [styles.bubbleText, isChild && { color: colors.white }],
+                    isChild ? { color: colors.white } : undefined
+                  )}
                 </View>
               </View>
             );
@@ -343,6 +394,7 @@ const styles = StyleSheet.create({
   bubbleChild: { backgroundColor: colors.teal, borderBottomRightRadius: 4 },
   bubbleText: { fontFamily: type.body, fontSize: 13.5, lineHeight: 20, color: colors.charcoal },
   speakBtn: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(26,95,122,0.1)', alignItems: 'center', justifyContent: 'center' },
+  speakBtnActive: { backgroundColor: 'rgba(217,119,6,0.18)' },
 
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,6 +16,8 @@ import { Pill } from '../../components/Pill';
 import { colors, radii, shadow, type } from '../../theme';
 import { useAsync } from '../../utils/useAsync';
 import { fetchDashboard } from '../../api/endpoints';
+
+import { EmptyState } from '../../components/EmptyState';
 
 const AVATAR_GRADIENTS: [string, string][] = [
   [colors.teal, colors.tealDark],
@@ -83,29 +86,25 @@ export default function ChildrenScreen({ navigation }: any) {
           </View>
         )}
 
+        {/* Loading Spinner to prevent UI flash */}
+        {loading && !data && (
+          <View style={{ paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colors.teal} />
+            <Text style={{ fontFamily: type.bodyMedium, fontSize: 13, color: colors.muted, marginTop: 12 }}>
+              Loading children list…
+            </Text>
+          </View>
+        )}
+
         {/* Empty state */}
-        {!loading && children.length === 0 && (
-          <Card style={styles.emptyCard}>
-            <LinearGradient
-              colors={['rgba(26, 95, 122, 0.08)', 'rgba(217, 119, 6, 0.06)']}
-              style={styles.emptyGradient}
-            >
-              <View style={styles.emptyIconBg}>
-                <Icon name="user" size={32} color={colors.teal} />
-              </View>
-              <Text style={styles.emptyTitle}>No children registered yet</Text>
-              <Text style={styles.emptyBody}>
-                Connect your child's WhatsApp number so Ada can begin personalized AI tutoring sessions.
-              </Text>
-              <Pressable
-                style={styles.emptyCta}
-                onPress={() => navigation.navigate('AddChild')}
-              >
-                <Text style={styles.emptyCtaText}>Add First Child</Text>
-                <Icon name="arrow-right" size={15} color={colors.white} />
-              </Pressable>
-            </LinearGradient>
-          </Card>
+        {!loading && data && children.length === 0 && (
+          <EmptyState
+            icon="user"
+            title="No children registered yet"
+            description="Connect your child's WhatsApp number so Ada can begin personalized AI tutoring sessions."
+            actionLabel="Add First Child"
+            onAction={() => navigation.navigate('AddChild')}
+          />
         )}
 
         {/* Children Card List */}

@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { colors, radii, shadow, type } from '../../theme';
 import { createChild } from '../../api/endpoints';
 import { extractErrorMessage } from '../../api/client';
+import { showToast } from '../../utils/toast';
 
 const GRADES = [
   'Nursery', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -23,7 +24,6 @@ export default function AddChildScreen({ navigation }: any) {
   const [age, setAge] = useState('');
   const [grade, setGrade] = useState('Primary 5');
   const [subjects, setSubjects] = useState<string[]>(['Mathematics']);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const toggleSubject = (s: string) => {
@@ -31,9 +31,8 @@ export default function AddChildScreen({ navigation }: any) {
   };
 
   const onSubmit = async () => {
-    setError('');
     if (!name || !whatsapp) {
-      setError("Enter your child's name and WhatsApp number to continue.");
+      showToast.error("Enter your child's name and WhatsApp number to continue.", 'Missing Details');
       return;
     }
     setLoading(true);
@@ -45,9 +44,10 @@ export default function AddChildScreen({ navigation }: any) {
         grade,
         subjects,
       });
+      showToast.success(`${name.trim()}'s profile created!`, 'Child Added');
       navigation.replace('MainTabs');
     } catch (e) {
-      setError(extractErrorMessage(e));
+      showToast.error(extractErrorMessage(e), 'Failed to Create Profile');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function AddChildScreen({ navigation }: any) {
 
         {/* Main Light Glass Form Card */}
         <View style={styles.card}>
-          <TextField label="Child's Full Name" value={name} onChangeText={setName} placeholder="Aisha Bello" />
+          <TextField label="Child's Full Name" value={name} onChangeText={setName} placeholder="Charles Aloaye" />
           <TextField
             label="Child's WhatsApp Number"
             value={whatsapp}
@@ -111,8 +111,6 @@ export default function AddChildScreen({ navigation }: any) {
               );
             })}
           </View>
-
-          {!!error && <Text style={styles.error}>{error}</Text>}
 
           <Button label="Create Child Profile" onPress={onSubmit} loading={loading} variant="amber" style={{ marginTop: 22 }} />
         </View>

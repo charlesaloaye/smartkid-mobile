@@ -26,12 +26,14 @@ import { colors, radii, shadow, type } from '../../theme';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { BIOMETRICS_ENABLED_KEY, useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../utils/useAsync';
+import { showToast } from '../../utils/toast';
 import {
   fetchChildren,
   fetchDashboard,
   updateUserPassword,
   updateUserProfile,
 } from '../../api/endpoints';
+import { EmptyState } from '../../components/EmptyState';
 
 const SEND_ON_ENTER_KEY = '@send_on_enter';
 const WHATSAPP_ALERTS_KEY = '@whatsapp_alerts';
@@ -204,9 +206,9 @@ export default function ProfileScreen({ navigation }: any) {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
         if (!hasHardware || !isEnrolled) {
-          Alert.alert(
-            'Biometrics Not Available',
-            'Face ID or Touch ID / Fingerprint is not supported or configured on this device.'
+          showToast.warning(
+            'Face ID or Touch ID / Fingerprint is not supported or configured on this device.',
+            'Biometrics Not Available'
           );
           return;
         }
@@ -219,10 +221,10 @@ export default function ProfileScreen({ navigation }: any) {
         if (res.success) {
           setBiometricsEnabled(true);
           await AsyncStorage.setItem(BIOMETRICS_ENABLED_KEY, 'true');
-          Alert.alert('Biometrics Enabled', 'You can now log in securely using Face ID / Touch ID.');
+          showToast.success('You can now log in securely using Face ID / Touch ID.', 'Biometrics Enabled');
         }
       } catch (err: any) {
-        Alert.alert('Biometric Error', err?.message || 'Could not enable biometric login.');
+        showToast.error(err?.message || 'Could not enable biometric login.', 'Biometric Error');
       }
     } else {
       setBiometricsEnabled(false);
@@ -303,13 +305,14 @@ export default function ProfileScreen({ navigation }: any) {
         updateUser(res.user);
       }
       setShowEditProfileModal(false);
-      Alert.alert('Profile Updated', 'Your profile details have been updated successfully.');
+      showToast.success('Your profile details have been updated successfully.', 'Profile Updated');
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.errors?.email?.[0] ||
         'Could not update profile. Please try again.';
       setProfileError(msg);
+      showToast.error(msg, 'Update Failed');
     } finally {
       setIsSavingProfile(false);
     }
@@ -317,15 +320,21 @@ export default function ProfileScreen({ navigation }: any) {
 
   const handleSavePassword = async () => {
     if (!currentPassword) {
-      setPasswordError('Please enter your current password.');
+      const msg = 'Please enter your current password.';
+      setPasswordError(msg);
+      showToast.error(msg, 'Missing Password');
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError('New password must be at least 8 characters long.');
+      const msg = 'New password must be at least 8 characters long.';
+      setPasswordError(msg);
+      showToast.error(msg, 'Password Too Short');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match.');
+      const msg = 'New passwords do not match.';
+      setPasswordError(msg);
+      showToast.error(msg, 'Password Mismatch');
       return;
     }
 
@@ -341,21 +350,22 @@ export default function ProfileScreen({ navigation }: any) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('Password Changed', 'Your password has been changed successfully.');
+      showToast.success('Your password has been changed successfully.', 'Password Changed');
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.errors?.current_password?.[0] ||
         'Could not update password. Please check your current password and try again.';
       setPasswordError(msg);
+      showToast.error(msg, 'Password Update Failed');
     } finally {
       setIsSavingPassword(false);
     }
   };
 
-  const childrenCount = dashboard?.total_children ?? childrenList?.length ?? 1;
+  const childrenCount = dashboard?.total_children ?? childrenList?.length ?? 0;
   const questionsCount = dashboard?.total_questions ?? 0;
-  const streakDays = dashboard?.learning_streak ?? 7;
+  const streakDays = dashboard?.learning_streak ?? 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -396,22 +406,26 @@ export default function ProfileScreen({ navigation }: any) {
                   style={styles.avatarGradient}
                 >
                   <Text style={styles.avatarText}>
-                    {(user?.name ?? 'P').charAt(0).toUpperCase()}
+                    {user?.name ? user.name.charAt(0).toUpperCase() : ''}
                   </Text>
                 </LinearGradient>
               </View>
 
               <View style={styles.heroInfo}>
                 <View style={styles.nameBadgeRow}>
-                  <Text style={styles.heroName}>{user?.name ?? 'Parent User'}</Text>
-                  <View style={styles.verifiedBadge}>
-                    <Icon name="check" size={10} color={colors.white} />
-                  </View>
+                  <Text style={styles.heroName}>{user?.name || ''}</Text>
+                  {!!(user?.email_verified_at || user?.id_verified_at) && (
+                    <View style={styles.verifiedBadge}>
+                      <Icon name="check" size={10} color={colors.white} />
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.heroEmail}>{user?.email ?? 'parent@smartkidtutor.ng'}</Text>
+                <Text style={styles.heroEmail}>{user?.email || ''}</Text>
                 <View style={styles.planPill}>
                   <Icon name="shield" size={11} color={colors.amberLight} />
-                  <Text style={styles.planPillText}>Verified Parent • NDPR Protected</Text>
+                  <Text style={styles.planPillText}>
+                    {(user?.email_verified_at || user?.id_verified_at) ? 'Verified Parent' : 'Parent Account'} • NDPR Protected
+                  </Text>
                 </View>
               </View>
             </View>
@@ -481,9 +495,9 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.sectionLabel}>REGISTERED CHILDREN ({childrenList?.length ?? 0})</Text>
           <Pressable
             onPress={() =>
-              Alert.alert(
-                'Add Child Profile',
-                'To register a new child, add their WhatsApp number in your parent dashboard at smartkidtutor.ng.'
+              showToast.info(
+                'To register a new child, add their WhatsApp number in your parent dashboard at smartkidtutor.ng.',
+                'Add Child Profile'
               )
             }
           >
@@ -522,13 +536,14 @@ export default function ProfileScreen({ navigation }: any) {
             })}
           </View>
         ) : (
-          <Card style={styles.emptyChildrenCard}>
-            <Icon name="user" size={24} color={colors.teal} />
-            <Text style={styles.emptyChildrenTitle}>No Children Added Yet</Text>
-            <Text style={styles.emptyChildrenSub}>
-              Link your child's WhatsApp number to start receiving daily learning reports.
-            </Text>
-          </Card>
+          <EmptyState
+            compact
+            icon="user"
+            title="No Children Added Yet"
+            description="Link your child's WhatsApp number to start receiving daily learning reports."
+            actionLabel="Add a child"
+            onAction={() => navigation.navigate('AddChild')}
+          />
         )}
 
         {/* Settings Group: Chat & App Preferences */}
@@ -613,9 +628,9 @@ export default function ProfileScreen({ navigation }: any) {
             label="Contact WhatsApp Support"
             subtitle="Chat directly with our support team"
             onPress={() =>
-              Alert.alert(
-                'Support Helpline',
-                'Reach our parent support team on WhatsApp or email us anytime at hello@smartkidtutor.ng'
+              showToast.info(
+                'Reach our parent support team on WhatsApp or email us anytime at hello@smartkidtutor.ng',
+                'Support Helpline'
               )
             }
           />
@@ -628,7 +643,18 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </Card>
 
+
+        {/* ─── Phase Roadmap (hidden) ────────────────────────────── */}
+        {/* <View style={styles.roadmapHeader}>
+          <Text style={styles.roadmapEyebrow}>PRODUCT ROADMAP</Text>
+          <Text style={styles.roadmapTitle}>What's Coming to SmartKid</Text>
+          <Text style={styles.roadmapSubtitle}>
+            We're building the most complete learning platform for Nigerian children. Here's what's next.
+          </Text>
+        </View> */}
+
         {/* Logout Button */}
+
         <Pressable
           style={({ pressed }) => [
             styles.logoutBtn,
@@ -707,7 +733,7 @@ export default function ProfileScreen({ navigation }: any) {
                       style={styles.inputControl}
                       value={editName}
                       onChangeText={setEditName}
-                      placeholder="Enter full name"
+                      placeholder="Charles Aloaye"
                       placeholderTextColor={colors.mutedLight}
                       autoCapitalize="words"
                     />
@@ -1531,5 +1557,74 @@ const styles = StyleSheet.create({
     fontFamily: type.bodyBold,
     fontSize: 14,
     color: colors.white,
+  },
+
+  // ─── Phase Roadmap Styles ───────────────────────────────────────
+  roadmapHeader: {
+    marginTop: 24,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  roadmapEyebrow: {
+    fontFamily: type.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 1.4,
+    color: colors.teal,
+    marginBottom: 4,
+  },
+  roadmapTitle: {
+    fontFamily: type.display,
+    fontSize: 20,
+    color: colors.charcoal,
+    marginBottom: 6,
+  },
+  roadmapSubtitle: {
+    fontFamily: type.body,
+    fontSize: 12.5,
+    color: colors.muted,
+    lineHeight: 18,
+  },
+  roadmapPhaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  roadmapPhaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roadmapPhaseLabel: {
+    fontFamily: type.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
+  roadmapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  laterBadge: {
+    backgroundColor: '#EDE9FE',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    flexShrink: 0,
+  },
+  laterText: {
+    fontFamily: type.bodyBold,
+    fontSize: 9,
+    color: '#5B21B6',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
 });

@@ -9,12 +9,12 @@ import { Icon } from '../../components/Icon';
 import { colors, radii, shadow, type } from '../../theme';
 import { BIOMETRICS_ENABLED_KEY, useAuth } from '../../context/AuthContext';
 import { extractErrorMessage, getToken } from '../../api/client';
+import { showToast } from '../../utils/toast';
 
 export default function LoginScreen({ navigation }: any) {
   const { login, loginWithBiometrics } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [biometricType, setBiometricType] = useState('Face ID / Touch ID');
@@ -43,28 +43,28 @@ export default function LoginScreen({ navigation }: any) {
   }, []);
 
   const onSubmit = async () => {
-    setError('');
     if (!email || !password) {
-      setError('Enter your email and password to continue.');
+      showToast.error('Enter your email and password to continue.', 'Missing Details');
       return;
     }
     setLoading(true);
     try {
       await login(email.trim(), password);
+      showToast.success('Logged in successfully!', 'Welcome Back');
     } catch (e) {
-      setError(extractErrorMessage(e));
+      showToast.error(extractErrorMessage(e), 'Login Failed');
     } finally {
       setLoading(false);
     }
   };
 
   const onBiometricLogin = async () => {
-    setError('');
     setLoading(true);
     try {
       await loginWithBiometrics();
+      showToast.success('Logged in with biometrics!', 'Welcome Back');
     } catch (e: any) {
-      setError(extractErrorMessage(e));
+      showToast.error(extractErrorMessage(e), 'Biometric Login Failed');
     } finally {
       setLoading(false);
     }
@@ -111,8 +111,6 @@ export default function LoginScreen({ navigation }: any) {
             autoCapitalize="none"
             placeholder="••••••••"
           />
-
-          {!!error && <Text style={styles.error}>{error}</Text>}
 
           <Button
             label="Log in to Dashboard"

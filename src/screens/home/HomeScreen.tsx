@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,6 +17,8 @@ import { colors, radii, shadow, type } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../utils/useAsync';
 import { fetchDashboard } from '../../api/endpoints';
+
+import { EmptyState } from '../../components/EmptyState';
 
 const AVATAR_GRADIENTS: [string, string][] = [
   [colors.teal, colors.tealDark],
@@ -59,7 +62,7 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.headerName}>{firstName} 👋</Text>
           </View>
           <View style={styles.headerRight}>
-            {!!data && (
+            {!!data && data.learning_streak > 0 && (
               <View style={styles.streakPill}>
                 <Icon name="flame" size={14} color={colors.amberDark} />
                 <Text style={styles.streakText}>{data.learning_streak} Day Streak</Text>
@@ -68,26 +71,25 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Empty state / Hero banner */}
+        {/* Loading Spinner during initial fetch to prevent screen flash */}
+        {loading && !data && (
+          <View style={{ paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colors.teal} />
+            <Text style={{ fontFamily: type.bodyMedium, fontSize: 13, color: colors.muted, marginTop: 12 }}>
+              Loading your dashboard…
+            </Text>
+          </View>
+        )}
+
+        {/* Empty state */}
         {!loading && data && data.total_children === 0 && (
-          <Pressable onPress={() => navigation.navigate('AddChild')}>
-            <LinearGradient
-              colors={[colors.teal, colors.tealDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroCard}
-            >
-              <Pill label="Get started" tone="light" />
-              <Text style={styles.heroTitle}>Add your first learner</Text>
-              <Text style={styles.heroBody}>
-                Register your child's WhatsApp number so Ada can start teaching them today.
-              </Text>
-              <View style={styles.heroCta}>
-                <Text style={styles.heroCtaText}>Add a child</Text>
-                <Icon name="arrow-right" size={15} color={colors.white} />
-              </View>
-            </LinearGradient>
-          </Pressable>
+          <EmptyState
+            icon="sparkle"
+            title="Add your first learner"
+            description="Register your child's WhatsApp number so Ada can start teaching them today."
+            actionLabel="Add a child"
+            onAction={() => navigation.navigate('AddChild')}
+          />
         )}
 
         {/* Active Stats Dashboard */}
@@ -204,9 +206,10 @@ export default function HomeScreen({ navigation }: any) {
 
             {data.children.map((child, index) => {
               const gradientColors = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length];
+              const validSubjects = (child.subjects ?? []).filter((s) => s !== 'None yet');
               const subjectsList =
-                child.subjects && child.subjects.length > 0
-                  ? child.subjects.slice(0, 2).join(' · ')
+                validSubjects.length > 0
+                  ? validSubjects.slice(0, 2).join(' · ')
                   : 'No sessions yet';
 
               return (
@@ -235,7 +238,7 @@ export default function HomeScreen({ navigation }: any) {
                         navigation.navigate('Tutor', { childId: child.id })
                       }
                     >
-                      <Icon name="chat" size={15} color={colors.white} />
+                      <Icon name="whatsapp" size={20} color={colors.white} />
                     </Pressable>
                   </View>
 
@@ -530,9 +533,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chatButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.teal,
     alignItems: 'center',
     justifyContent: 'center',

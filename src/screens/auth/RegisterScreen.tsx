@@ -7,6 +7,7 @@ import { Icon } from '../../components/Icon';
 import { colors, radii, shadow, type } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { extractErrorMessage } from '../../api/client';
+import { showToast } from '../../utils/toast';
 
 export default function RegisterScreen({ navigation }: any) {
   const { register } = useAuth();
@@ -15,21 +16,19 @@ export default function RegisterScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [consent, setConsent] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
-    setError('');
     if (!name || !email || !password || !confirm) {
-      setError('Fill in every field to create your account.');
+      showToast.error('Fill in every field to create your account.', 'Missing Information');
       return;
     }
     if (password !== confirm) {
-      setError('Passwords do not match.');
+      showToast.error('Passwords do not match.', 'Password Mismatch');
       return;
     }
     if (!consent) {
-      setError('Please accept the Terms & Privacy Policy to continue.');
+      showToast.warning('Please accept the Terms & Privacy Policy to continue.', 'Consent Required');
       return;
     }
     setLoading(true);
@@ -41,8 +40,9 @@ export default function RegisterScreen({ navigation }: any) {
         password_confirmation: confirm,
         consent,
       });
+      showToast.success('Account created successfully!', 'Welcome');
     } catch (e) {
-      setError(extractErrorMessage(e));
+      showToast.error(extractErrorMessage(e), 'Registration Failed');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function RegisterScreen({ navigation }: any) {
 
         {/* Glass Form Card */}
         <View style={styles.card}>
-          <TextField label="Your Full Name" value={name} onChangeText={setName} placeholder="Funke Bello" />
+          <TextField label="Your Full Name" value={name} onChangeText={setName} placeholder="Charles Aloaye" />
           <TextField
             label="Email Address"
             value={email}
@@ -93,8 +93,6 @@ export default function RegisterScreen({ navigation }: any) {
               I agree to the Terms of Service and Privacy Policy, including NDPR data handling.
             </Text>
           </Pressable>
-
-          {!!error && <Text style={styles.error}>{error}</Text>}
 
           <Button label="Create Account" onPress={onSubmit} loading={loading} variant="amber" style={{ marginTop: 6 }} />
         </View>
