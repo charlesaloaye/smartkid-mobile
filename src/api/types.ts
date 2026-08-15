@@ -46,6 +46,8 @@ export type SendMessageResponse = {
 
 export type SendVoiceMessageResponse = SendMessageResponse & {
   transcript: string;
+  audio_url?: string;
+  audio_base64?: string;
 };
 
 export type MasterySubject = {

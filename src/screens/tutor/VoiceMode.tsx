@@ -25,7 +25,7 @@ type Props = {
   initialLongTalk?: boolean;
   onClose: () => void;
   onResult: (userMsg: Message, aiMsg: Message) => void;
-  sendVoice: (uri: string) => Promise<{ message: Message; reply: Message }>;
+  sendVoice: (uri: string) => Promise<{ message: Message; reply: Message; audio_url?: string; audio_base64?: string }>;
 };
 
 function Waveform({ active }: { active: boolean }) {
@@ -57,11 +57,13 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
   const [status, setStatus] = useState<Status>('listening');
   const [isLongTalk, setIsLongTalk] = useState(initialLongTalk);
   const [caption, setCaption] = useState('');
+  const [silenceDetected, setSilenceDetected] = useState(false);
   const mountedRef = useRef(true);
   const closingRef = useRef(false);
   const sendingRef = useRef(false);
   const hasSpokenRef = useRef(false);
   const silenceStartRef = useRef<number | null>(null);
+  const peakMeteringRef = useRef<number>(-60);
 
   const recorderOptions = useMemo(
     () => ({
@@ -71,7 +73,8 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
     []
   );
   const recorder = useAudioRecorder(recorderOptions);
-  const recorderState = useAudioRecorderState(recorder, 200);
+  // Poll state every 80ms for near-instant level detection
+  const recorderState = useAudioRecorderState(recorder, 80);
 
   const orbScale = useRef(new Animated.Value(1)).current;
 
@@ -99,28 +102,41 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
     return () => pulse.stop();
   }, [status, orbScale]);
 
-  // Silence detection & Auto-sending when user finishes speaking
+  // Silence detection & Auto-sending with 850ms quick pickup threshold & adaptive VAD
   useEffect(() => {
     if (status !== 'listening' || sendingRef.current) return;
 
     const { isRecording, durationMillis, metering } = recorderState;
-    if (!isRecording || durationMillis < 1200) return;
+    // Lower min recording buffer from 1200ms to 400ms for short responses ("Yes", "Option B", "12")
+    if (!isRecording || durationMillis < 400) return;
 
-    const SILENCE_THRESHOLD = isLongTalk ? -38 : -32; // dBFS threshold for speech vs silence
-    const SILENCE_DURATION_MS = isLongTalk ? 4500 : 1800; // 4.5s (Long Talk) vs 1.8s (Quick Mode)
+    // Quick Mode silence: 850ms, Long Talk: 1800ms
+    const SILENCE_DURATION_MS = isLongTalk ? 1800 : 850;
+    const BASE_SILENCE_THRESHOLD = isLongTalk ? -38 : -32;
 
-    if (metering !== undefined && metering > SILENCE_THRESHOLD) {
-      hasSpokenRef.current = true;
-      silenceStartRef.current = null;
-    } else if (hasSpokenRef.current) {
-      if (silenceStartRef.current === null) {
-        silenceStartRef.current = Date.now();
-      } else if (Date.now() - silenceStartRef.current >= SILENCE_DURATION_MS) {
-        sendingRef.current = true;
-        finishAndSend();
+    if (metering !== undefined) {
+      if (metering > peakMeteringRef.current) {
+        peakMeteringRef.current = metering;
+      }
+
+      // Dynamic speech threshold based on peak speech volume vs room floor
+      const dynamicSpeechThreshold = Math.max(BASE_SILENCE_THRESHOLD, peakMeteringRef.current - 14);
+
+      if (metering > dynamicSpeechThreshold) {
+        hasSpokenRef.current = true;
+        silenceStartRef.current = null;
+        if (silenceDetected) setSilenceDetected(false);
+      } else if (hasSpokenRef.current) {
+        if (silenceStartRef.current === null) {
+          silenceStartRef.current = Date.now();
+        } else if (Date.now() - silenceStartRef.current >= SILENCE_DURATION_MS) {
+          sendingRef.current = true;
+          setSilenceDetected(true);
+          finishAndSend();
+        }
       }
     }
-  }, [status, recorderState, isLongTalk]);
+  }, [status, recorderState, isLongTalk, silenceDetected]);
 
   const beginListening = async () => {
     if (closingRef.current || !mountedRef.current) return;
@@ -128,6 +144,8 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
       hasSpokenRef.current = false;
       silenceStartRef.current = null;
       sendingRef.current = false;
+      peakMeteringRef.current = -60;
+      setSilenceDetected(false);
 
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
@@ -164,6 +182,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
       sendingRef.current = false;
       hasSpokenRef.current = false;
       silenceStartRef.current = null;
+      setSilenceDetected(false);
       if (mountedRef.current) {
         setStatus('listening');
       }
@@ -185,12 +204,12 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
       speakNigerian(res.reply.message, {
         onDone: () => {
           if (mountedRef.current && !closingRef.current) {
-            setTimeout(() => beginListening(), 300);
+            setTimeout(() => beginListening(), 250);
           }
         },
         onError: () => {
           if (mountedRef.current && !closingRef.current) {
-            setTimeout(() => beginListening(), 300);
+            setTimeout(() => beginListening(), 250);
           }
         },
       });
@@ -208,7 +227,12 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
   };
 
   const statusLabel =
-    status === 'listening' ? (isLongTalk ? 'Ada is listening (Long Talk)…' : 'Ada is listening…')
+    status === 'listening'
+      ? silenceDetected
+        ? 'Got it! Sending to Ada…'
+        : isLongTalk
+        ? 'Ada is listening (Long Talk)…'
+        : 'Ada is listening…'
     : status === 'thinking' ? 'Ada is thinking…'
     : status === 'speaking' ? 'Ada'
     : 'Something went wrong';
@@ -216,6 +240,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
   const orbColors: [string, string] =
     status === 'error' ? [colors.coral, '#b8441f']
     : status === 'thinking' ? [colors.mutedLight, colors.muted]
+    : silenceDetected ? [colors.sage, colors.teal]
     : isLongTalk ? [colors.amber, colors.amberDark]
     : [colors.amberLight, colors.amber];
 
@@ -244,10 +269,24 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
 
       <View style={styles.center}>
         <Animated.View style={{ transform: [{ scale: orbScale }] }}>
-          <LinearGradient colors={orbColors} start={{ x: 0.2, y: 0.1 }} end={{ x: 1, y: 1 }} style={styles.orb} />
+          <Pressable
+            onPress={() => {
+              if (status === 'listening') {
+                sendingRef.current = true;
+                setSilenceDetected(true);
+                finishAndSend();
+              }
+            }}
+          >
+            <LinearGradient colors={orbColors} start={{ x: 0.2, y: 0.1 }} end={{ x: 1, y: 1 }} style={styles.orb} />
+          </Pressable>
         </Animated.View>
 
         <Text style={styles.statusText}>{statusLabel}</Text>
+
+        {status === 'listening' && (
+          <Text style={styles.tapTipText}>Tap orb or button anytime to send instantly</Text>
+        )}
 
         {!!caption && (
           <Text style={styles.caption} numberOfLines={4}>
@@ -270,6 +309,8 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
               Speech.stop();
               beginListening();
             } else if (status === 'listening') {
+              sendingRef.current = true;
+              setSilenceDetected(true);
               finishAndSend();
             } else if (status === 'error') {
               beginListening();
@@ -319,6 +360,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36 },
   orb: { width: 128, height: 128, borderRadius: 64 },
   statusText: { fontFamily: type.displaySemi, fontSize: 16, color: colors.white, marginTop: 22, textAlign: 'center' },
+  tapTipText: { fontFamily: type.body, fontSize: 11.5, color: 'rgba(255,255,255,0.45)', marginTop: 6, textAlign: 'center' },
   caption: { fontFamily: type.body, fontSize: 13.5, lineHeight: 20, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: 12 },
 
   waveform: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 24, marginTop: 22 },
