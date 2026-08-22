@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Screen } from '../../components/Screen';
@@ -81,10 +81,19 @@ export default function LoginScreen({ navigation }: any) {
       />
 
       <Screen scroll background="transparent" statusBarStyle="dark-content">
+        {/* Official Brand Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../../assets/logo-horizontal.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
+
         {/* Brand Badge */}
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>✨ SMARTKID TUTOR • SOCRATIC AI</Text>
+            <Text style={styles.badgeText}>✨ SOCRATIC AI TUTOR</Text>
           </View>
         </View>
 
@@ -168,8 +177,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FBF7EE',
   },
+  logoContainer: {
+    marginTop: 20,
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  logoImage: {
+    width: 200,
+    height: 52,
+  },
   badgeContainer: {
-    marginTop: 30,
+    marginTop: 8,
     marginBottom: 14,
     alignItems: 'flex-start',
   },

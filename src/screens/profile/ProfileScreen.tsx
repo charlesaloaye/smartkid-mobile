@@ -4,6 +4,7 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -671,7 +672,12 @@ export default function ProfileScreen({ navigation }: any) {
 
         {/* App Info Footer */}
         <View style={styles.footerContainer}>
-          <Text style={styles.footerBrand}>SmartKid Tutor • Socratic Learning Companion</Text>
+          <Image
+            source={require('../../../assets/logo-horizontal.png')}
+            style={styles.footerLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.footerBrand}>Socratic AI Learning Companion</Text>
           <Text style={styles.footerVersion}>Version 1.2.0 • Phase 1 Release</Text>
           <Text style={styles.footerCopyright}>© 2026 smartkidtutor.ng. All rights reserved.</Text>
         </View>
@@ -1368,8 +1374,14 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
     gap: 4,
+  },
+  footerLogo: {
+    width: 170,
+    height: 44,
+    marginBottom: 4,
+    opacity: 0.9,
   },
   footerBrand: {
     fontFamily: type.bodySemi,

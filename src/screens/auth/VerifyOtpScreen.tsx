@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../components/Screen';
 import { OtpInput } from '../../components/OtpInput';
 import { Button } from '../../components/Button';
@@ -25,48 +25,48 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [countdown, setCountdown] = useState(60);
+  const [resendTimer, setResendTimer] = useState(60);
 
   useEffect(() => {
-    let timer: any;
-    if (countdown > 0) {
-      timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
     }
-    return () => clearInterval(timer);
-  }, [countdown]);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const onVerify = async () => {
     if (otpCode.trim().length !== 6) {
-      showToast.warning('Please enter the full 6-digit verification code.', 'Incomplete Code');
+      showToast.error('Please enter the complete 6-digit code.', 'Invalid Code');
       return;
     }
-
     setLoading(true);
     try {
-      const res = await verifyOtpApi(otpCode.trim());
-      if (res.user) {
-        updateUser(res.user);
+      const response = await verifyOtpApi(otpCode.trim());
+      showToast.success('Account verified successfully!', 'Verified');
+      if (response?.user) {
+        updateUser(response.user);
+      } else {
+        await refreshUser();
       }
-      await refreshUser();
-      showToast.success('Email verified successfully! Welcome aboard.', 'Verified 🎉');
-    } catch (e) {
-      showToast.error(extractErrorMessage(e), 'Verification Failed');
+    } catch (err: any) {
+      const msg = extractErrorMessage(err);
+      showToast.error(msg, 'Verification Failed');
     } finally {
       setLoading(false);
     }
   };
 
   const onResend = async () => {
-    if (countdown > 0 || resending) return;
-
+    if (resendTimer > 0) return;
     setResending(true);
     try {
       await resendOtpApi();
-      showToast.success('A new 6-digit code has been sent to your email.', 'Code Sent');
-      setCountdown(60);
-      setOtpCode('');
-    } catch (e) {
-      showToast.error(extractErrorMessage(e), 'Resend Failed');
+      showToast.success('A new verification code has been sent to your email.', 'Code Sent');
+      setResendTimer(60);
+    } catch (err: any) {
+      const msg = extractErrorMessage(err);
+      showToast.error(msg, 'Resend Failed');
     } finally {
       setResending(false);
     }
@@ -82,9 +82,18 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
       />
 
       <Screen scroll background="transparent" statusBarStyle="dark-content">
+        {/* Official Brand Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../../assets/logo-horizontal.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
+
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>✨ SMARTKID TUTOR • VERIFICATION</Text>
+            <Text style={styles.badgeText}>✨ EMAIL VERIFICATION</Text>
           </View>
         </View>
 
@@ -113,9 +122,9 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
           />
 
           <View style={styles.resendRow}>
-            {countdown > 0 ? (
+            {resendTimer > 0 ? (
               <Text style={styles.resendText}>
-                Resend code in <Text style={styles.countdownText}>{countdown}s</Text>
+                Resend code in <Text style={styles.countdownText}>{resendTimer}s</Text>
               </Text>
             ) : (
               <Pressable onPress={onResend} disabled={resending} hitSlop={10}>
@@ -149,7 +158,16 @@ export default function VerifyOtpScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FBF7EE' },
-  badgeContainer: { alignItems: 'flex-start', marginTop: 30, marginBottom: 14 },
+  logoContainer: {
+    marginTop: 20,
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  logoImage: {
+    width: 200,
+    height: 52,
+  },
+  badgeContainer: { alignItems: 'flex-start', marginTop: 8, marginBottom: 14 },
   badge: {
     backgroundColor: 'rgba(26, 95, 122, 0.08)',
     paddingHorizontal: 12,

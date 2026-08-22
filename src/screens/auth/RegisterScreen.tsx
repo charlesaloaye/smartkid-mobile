@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
@@ -24,11 +24,15 @@ export default function RegisterScreen({ navigation }: any) {
       return;
     }
     if (password !== confirm) {
-      showToast.error('Passwords do not match.', 'Password Mismatch');
+      showToast.error('Your passwords do not match.', 'Password Mismatch');
+      return;
+    }
+    if (password.length < 8) {
+      showToast.error('Password must be at least 8 characters long.', 'Password Too Short');
       return;
     }
     if (!consent) {
-      showToast.warning('Please accept the Terms & Privacy Policy to continue.', 'Consent Required');
+      showToast.info('Please accept the Terms & Privacy Policy to continue.', 'Terms Required');
       return;
     }
     setLoading(true);
@@ -40,9 +44,9 @@ export default function RegisterScreen({ navigation }: any) {
         password_confirmation: confirm,
         consent,
       });
-      showToast.success('Account created successfully!', 'Welcome');
-    } catch (e) {
-      showToast.error(extractErrorMessage(e), 'Registration Failed');
+    } catch (err: any) {
+      const msg = extractErrorMessage(err);
+      showToast.error(msg, 'Registration Failed');
     } finally {
       setLoading(false);
     }
@@ -59,6 +63,15 @@ export default function RegisterScreen({ navigation }: any) {
       />
 
       <Screen scroll background="transparent" statusBarStyle="dark-content">
+        {/* Official Brand Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../../assets/logo-horizontal.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
+
         {/* Brand Badge */}
         <View style={styles.badgeContainer}>
           <View style={styles.badge}>
@@ -112,8 +125,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FBF7EE',
   },
+  logoContainer: {
+    marginTop: 20,
+    marginBottom: 6,
+    alignItems: 'flex-start',
+  },
+  logoImage: {
+    width: 200,
+    height: 52,
+  },
   badgeContainer: {
-    marginTop: 30,
+    marginTop: 8,
     marginBottom: 14,
     alignItems: 'flex-start',
   },
