@@ -121,12 +121,20 @@ export default function LoginScreen({ navigation }: any) {
             placeholder="••••••••"
           />
 
+          {/* Forgot password link */}
+          <Pressable
+            style={styles.forgotRow}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
+
           <Button
             label="Log in to Dashboard"
             onPress={onSubmit}
             loading={loading}
             variant="amber"
-            style={{ marginTop: 8 }}
+            style={{ marginTop: 4 }}
           />
 
           {hasBiometrics && (
@@ -273,6 +281,16 @@ const styles = StyleSheet.create({
   footer: { marginTop: 24, alignItems: 'center', paddingBottom: 10 },
   footerText: { fontFamily: type.body, fontSize: 14, color: colors.muted },
   footerLink: { fontFamily: type.bodyBold, color: colors.amberDark },
+  forgotRow: {
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  forgotText: {
+    fontFamily: type.bodyMedium,
+    fontSize: 13,
+    color: colors.teal,
+  },
   trustRow: {
     flexDirection: 'row',
     alignItems: 'center',

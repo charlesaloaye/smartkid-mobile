@@ -157,3 +157,18 @@ export async function cancelSubscription() {
   const { data } = await api.post<{ message: string; subscription: SubscriptionSummary }>('/subscription/cancel');
   return data;
 }
+
+export async function forgotPassword(email: string) {
+  const { data } = await api.post<{ message: string }>('/forgot-password', { email });
+  return data;
+}
+
+export async function resetPassword(payload: {
+  email: string;
+  token: string;
+  password: string;
+  password_confirmation: string;
+}) {
+  const { data } = await api.post<{ message: string }>('/reset-password', payload);
+  return data;
+}

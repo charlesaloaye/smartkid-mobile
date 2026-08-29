@@ -7,7 +7,7 @@ export type IconName =
   | 'shield' | 'x' | 'bell' | 'sparkle' | 'phone-end' | 'card'
   | 'calendar' | 'arrow-right' | 'whatsapp' | 'logout' | 'plus'
   | 'eye' | 'eye-off' | 'alert-circle' | 'check-circle' | 'info' | 'alert-triangle'
-  | 'play' | 'pause' | 'volume'
+  | 'play' | 'pause' | 'volume' | 'envelope'
   | 'book-open' | 'trophy' | 'trending-up';
 
 type Props = {
@@ -89,6 +89,8 @@ export function Icon({ name, size = 20, color = '#1F2937' }: Props) {
       return <Ionicons name="trophy-outline" size={size} color={color} />;
     case 'trending-up':
       return <Feather name="trending-up" size={size} color={color} />;
+    case 'envelope':
+      return <Feather name="mail" size={size} color={color} />;
     default:
       return null;
   }

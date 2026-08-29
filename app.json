@@ -29,16 +29,27 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "updates": {
+      "url": "https://u.expo.dev/0d1b447c-42af-4bb9-83b0-537687cb07b7"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "plugins": [
       "expo-font",
       "expo-secure-store",
       "expo-splash-screen",
+      "expo-updates",
       [
         "expo-audio",
         {
@@ -52,6 +63,12 @@
         "projectId": "0d1b447c-42af-4bb9-83b0-537687cb07b7"
       }
     },
-    "owner": "charlestechy0"
+    "owner": "charlestechy0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0d1b447c-42af-4bb9-83b0-537687cb07b7"
+    }
   }
 }
