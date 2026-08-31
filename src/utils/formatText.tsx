@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { type } from '../theme';
 
 /**
- * Cleans up raw LaTeX formatting and formats questions onto separate bold lines.
+ * Cleans up raw LaTeX formatting, markdown headers, and unescaped symbols.
  */
 export function formatMathText(text: string): string {
   if (!text) return '';
@@ -48,14 +48,17 @@ export function formatMathText(text: string): string {
     return /^[a-zA-Z0-9]+$/.test(trimmed) ? `√${trimmed}` : `√(${trimmed})`;
   });
 
+  // Clean markdown headers like "### Title" -> "**Title**"
+  cleaned = cleaned.replace(/^#{1,6}\s*(.+)$/gm, '**$1**\n');
+
+  // Convert markdown bullet points "* item" or "- item" at start of lines to "• item"
+  cleaned = cleaned.replace(/^[\*\-]\s+(.+)$/gm, '• $1');
+
   // Format "Here's a simple example: What is 1/2 + 1/3?" onto its own bold line
   cleaned = cleaned.replace(
     /(Here's a simple example|Example|Question|Try this|Solve this):\s*([^\n?]+\?)\s*/gi,
     (_, intro: string, q: string) => {
-      const trimmedQ = q.trim();
-      if (trimmedQ.startsWith('**') && trimmedQ.endsWith('**')) {
-        return `${intro}:\n\n${trimmedQ}\n\n`;
-      }
+      const trimmedQ = q.trim().replace(/^\*\*|\*\*$/g, '');
       return `${intro}:\n\n**${trimmedQ}**\n\n`;
     }
   );
@@ -66,25 +69,83 @@ export function formatMathText(text: string): string {
   return cleaned;
 }
 
+type TextToken = {
+  text: string;
+  isBold: boolean;
+};
+
 /**
- * Renders text containing **bold** markup into React Native Text nodes.
+ * Parses markdown bold (**text**, __text__, or *text*) into tokens and strips any stray raw asterisks.
+ */
+export function parseFormattedTokens(input: string): TextToken[] {
+  if (!input) return [];
+
+  // Match **bold** or __bold__ or *bold* (word boundary)
+  const regex = /(\*\*|__)(.*?)\1|(?<=\s|^)\*([^\s\*].*?[^\s\*]|\w)\*(?=\s|$|[.,!?:;])/gs;
+  
+  const tokens: TextToken[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(input)) !== null) {
+    // Text before match
+    if (match.index > lastIndex) {
+      const beforeText = input.substring(lastIndex, match.index);
+      if (beforeText) {
+        // Strip any dangling lone asterisks that might have been unclosed
+        tokens.push({ text: beforeText.replace(/\*\*/g, '').replace(/\*/g, ''), isBold: false });
+      }
+    }
+
+    // Bold text inside delimiters
+    const boldContent = match[2] ?? match[3] ?? '';
+    if (boldContent) {
+      tokens.push({ text: boldContent.replace(/\*\*/g, ''), isBold: true });
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  // Remaining text after last match
+  if (lastIndex < input.length) {
+    const afterText = input.substring(lastIndex);
+    if (afterText) {
+      tokens.push({ text: afterText.replace(/\*\*/g, '').replace(/\*/g, ''), isBold: false });
+    }
+  }
+
+  return tokens.filter((t) => t.text.length > 0);
+}
+
+/**
+ * Renders text containing markdown markup into React Native Text nodes without any raw ** characters.
  */
 export function renderFormattedText(text: string, baseStyle: any, boldStyle?: any) {
   const formatted = formatMathText(text);
-  const parts = formatted.split(/\*\*/g);
+  const tokens = parseFormattedTokens(formatted);
+
+  if (tokens.length === 0) {
+    return <Text style={baseStyle}>{text.replace(/\*\*/g, '').replace(/\*/g, '')}</Text>;
+  }
 
   return (
     <Text style={baseStyle}>
-      {parts.map((part, index) => {
-        const isBold = index % 2 === 1;
-        if (isBold) {
+      {tokens.map((token, index) => {
+        if (token.isBold) {
           return (
-            <Text key={index} style={[baseStyle, { fontFamily: type.bodyBold, fontWeight: '700' }, boldStyle]}>
-              {part}
+            <Text
+              key={index}
+              style={[
+                baseStyle,
+                { fontFamily: type.bodyBold, fontWeight: '700' },
+                boldStyle,
+              ]}
+            >
+              {token.text}
             </Text>
           );
         }
-        return part;
+        return <Text key={index} style={baseStyle}>{token.text}</Text>;
       })}
     </Text>
   );

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
@@ -12,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Speech from 'expo-speech';
 import { speakNigerian } from '../../utils/speechUtils';
@@ -38,6 +39,7 @@ type ChatMessage = Message | { id: string; sender: 'system'; message: string };
 const QUICK_REPLIES = ['Show me an example', 'I understand now', 'Can you explain again?'];
 
 export default function TutorScreen({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const requestedChildId = route?.params?.childId as number | undefined;
   const [children, setChildren] = useState<Child[] | null>(null);
   const [activeChild, setActiveChild] = useState<Child | null>(null);
@@ -52,6 +54,16 @@ export default function TutorScreen({ navigation, route }: any) {
   const [isSwipingMic, setIsSwipingMic] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<number | string | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    return () => sub.remove();
+  }, []);
 
   const micPanResponder = useRef(
     PanResponder.create({
@@ -234,13 +246,19 @@ export default function TutorScreen({ navigation, route }: any) {
         />
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+      >
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(m) => String(m.id)}
           contentContainerStyle={styles.messages}
           onContentSizeChange={scrollToEnd}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListHeaderComponent={
             insight ? (
               <View style={styles.memoryChip}>
@@ -316,6 +334,11 @@ export default function TutorScreen({ navigation, route }: any) {
             returnKeyType={sendOnEnter ? 'send' : 'default'}
             onSubmitEditing={sendOnEnter ? handleSendText : undefined}
             blurOnSubmit={false}
+            onFocus={() => {
+              setTimeout(() => {
+                listRef.current?.scrollToEnd({ animated: true });
+              }, 150);
+            }}
           />
           <Pressable style={styles.micBtn} onPress={() => setVoiceOpen(true)} disabled={sending}>
             <Icon name="mic" size={16} color={colors.charcoal} />
