@@ -72,6 +72,9 @@
         }
       ],
       "expo-web-browser",
+      "expo-apple-authentication",
+      "expo-system-ui",
+      "./plugins/withDisableLint.js",
       [
         "expo-build-properties",
         {

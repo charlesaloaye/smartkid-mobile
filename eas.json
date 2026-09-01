@@ -27,7 +27,7 @@
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "87739056632-itk3huen5cmtl91e8sghk3i64atsu61r.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "87739056632-b9b8r20nssgehjggnrdm9c6k13cvqdgc.apps.googleusercontent.com",
-        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx3072m -XX:MaxMetaspaceSize=512m\" -Dorg.gradle.parallel=false -Dorg.gradle.vfs.watch=false"
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError\" -Dorg.gradle.parallel=false -Dorg.gradle.vfs.watch=false"
       }
     }
   },
