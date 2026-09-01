@@ -1,12 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as LocalAuthentication from 'expo-local-authentication';
+import appStorage from '../utils/storage';
+import Biometrics from '../utils/biometrics';
 import { clearToken, getToken, saveToken } from '../api/client';
-import { fetchCurrentUser, loginParent, logoutParent, registerParent } from '../api/endpoints';
+import { fetchCurrentUser, loginParent, logoutParent, registerParent, socialLogin } from '../api/endpoints';
 import type { User } from '../api/types';
 
 const ONBOARDING_KEY = 'smartkid_onboarding_seen';
-export const BIOMETRICS_ENABLED_KEY = '@smartkid_biometrics_enabled';
+export const BIOMETRICS_ENABLED_KEY = 'smartkid_biometrics_enabled';
 
 type AuthState = {
   isLoading: boolean;
@@ -15,7 +15,14 @@ type AuthState = {
   authEntryScreen: 'Login' | 'Register';
   user: User | null;
   completeOnboarding: (entry?: 'Login' | 'Register') => Promise<void>;
+  resetOnboarding: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithSocial: (payload: {
+    provider: 'google' | 'apple';
+    email: string;
+    name?: string;
+    provider_id: string;
+  }) => Promise<void>;
   register: (payload: {
     name: string;
     email: string;
@@ -42,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const [token, seen] = await Promise.all([
         getToken(),
-        AsyncStorage.getItem(ONBOARDING_KEY),
+        appStorage.getItem(ONBOARDING_KEY),
       ]);
       setHasSeenOnboarding(seen === 'true');
 
@@ -60,9 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const completeOnboarding = useCallback(async (entry: 'Login' | 'Register' = 'Login') => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    await appStorage.setItem(ONBOARDING_KEY, 'true');
     setAuthEntryScreen(entry);
     setHasSeenOnboarding(true);
+  }, []);
+
+  const resetOnboarding = useCallback(async () => {
+    await appStorage.removeItem(ONBOARDING_KEY);
+    setHasSeenOnboarding(false);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -72,6 +84,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
     setIsAuthenticated(true);
   }, []);
+
+  const loginWithSocial = useCallback(
+    async (payload: {
+      provider: 'google' | 'apple';
+      email: string;
+      name?: string;
+      provider_id: string;
+    }) => {
+      const res = await socialLogin(payload);
+      await saveToken(res.access_token);
+      const me = await fetchCurrentUser();
+      setUser(me);
+      setIsAuthenticated(true);
+    },
+    []
+  );
 
   const register = useCallback(
     async (payload: {
@@ -115,8 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginWithBiometrics = useCallback(async (): Promise<boolean> => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    const hasHardware = await Biometrics.hasHardwareAsync();
+    const isEnrolled = await Biometrics.isEnrolledAsync();
     if (!hasHardware || !isEnrolled) {
       throw new Error('Biometric authentication is not supported or set up on this device.');
     }
@@ -126,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No saved login session found. Please log in with email and password first.');
     }
 
-    const result = await LocalAuthentication.authenticateAsync({
+    const result = await Biometrics.authenticateAsync({
       promptMessage: 'Log in to SmartKid Tutor',
       fallbackLabel: 'Use Password',
       cancelLabel: 'Cancel',
@@ -150,7 +178,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authEntryScreen,
       user,
       completeOnboarding,
+      resetOnboarding,
       login,
+      loginWithSocial,
       register,
       logout,
       updateUser,
@@ -164,7 +194,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authEntryScreen,
       user,
       completeOnboarding,
+      resetOnboarding,
       login,
+      loginWithSocial,
       register,
       logout,
       updateUser,

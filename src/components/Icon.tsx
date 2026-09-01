@@ -1,5 +1,46 @@
 import React from 'react';
-import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  BarChart2,
+  Bell,
+  BookOpen,
+  Calendar,
+  Camera,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Eye,
+  EyeOff,
+  Flame,
+  Home,
+  Image as ImageIcon,
+  Info,
+  LayoutGrid,
+  Lock,
+  LogOut,
+  Mail,
+  MessageCircle,
+  Mic,
+  Pause,
+  PhoneOff,
+  Play,
+  Plus,
+  Send,
+  Shield,
+  Sparkles,
+  Star,
+  Trash2,
+  TrendingUp,
+  Trophy,
+  User,
+  Volume2,
+  X,
+} from 'lucide-react-native';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 
 export type IconName =
   | 'home' | 'grid' | 'chat' | 'mic' | 'chart' | 'user' | 'flame'
@@ -8,7 +49,8 @@ export type IconName =
   | 'calendar' | 'arrow-right' | 'whatsapp' | 'logout' | 'plus'
   | 'eye' | 'eye-off' | 'alert-circle' | 'check-circle' | 'info' | 'alert-triangle'
   | 'play' | 'pause' | 'volume' | 'envelope'
-  | 'book-open' | 'trophy' | 'trending-up';
+  | 'book-open' | 'trophy' | 'trending-up'
+  | 'camera' | 'image' | 'trash' | 'send';
 
 type Props = {
   name: IconName;
@@ -17,80 +59,88 @@ type Props = {
   strokeWidth?: number;
 };
 
-export function Icon({ name, size = 20, color = '#1F2937' }: Props) {
+export function Icon({ name, size = 20, color = '#1F2937', strokeWidth = 2 }: Props) {
   switch (name) {
+    case 'camera':
+      return <Camera size={size} color={color} strokeWidth={strokeWidth} />;
+    case 'image':
+      return <ImageIcon size={size} color={color} strokeWidth={strokeWidth} />;
+    case 'trash':
+      return <Trash2 size={size} color={color} strokeWidth={strokeWidth} />;
     case 'home':
-      return <Feather name="home" size={size} color={color} />;
+      return <Home size={size} color={color} strokeWidth={strokeWidth} />;
     case 'grid':
-      return <Feather name="grid" size={size} color={color} />;
+      return <LayoutGrid size={size} color={color} strokeWidth={strokeWidth} />;
     case 'chat':
-      return <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />;
+      return <MessageCircle size={size} color={color} strokeWidth={strokeWidth} />;
     case 'mic':
-      return <Feather name="mic" size={size} color={color} />;
+      return <Mic size={size} color={color} strokeWidth={strokeWidth} />;
     case 'chart':
-      return <Feather name="bar-chart-2" size={size} color={color} />;
+      return <BarChart2 size={size} color={color} strokeWidth={strokeWidth} />;
     case 'user':
-      return <Feather name="user" size={size} color={color} />;
+      return <User size={size} color={color} strokeWidth={strokeWidth} />;
     case 'flame':
-      return <Ionicons name="flame" size={size} color={color} />;
+      return <Flame size={size} color={color} strokeWidth={strokeWidth} />;
     case 'lock':
-      return <Feather name="lock" size={size} color={color} />;
+      return <Lock size={size} color={color} strokeWidth={strokeWidth} />;
     case 'check':
-      return <Feather name="check" size={size} color={color} />;
+      return <Check size={size} color={color} strokeWidth={strokeWidth} />;
     case 'chevron-right':
-      return <Feather name="chevron-right" size={size} color={color} />;
+      return <ChevronRight size={size} color={color} strokeWidth={strokeWidth} />;
     case 'chevron-left':
-      return <Feather name="chevron-left" size={size} color={color} />;
+      return <ChevronLeft size={size} color={color} strokeWidth={strokeWidth} />;
     case 'star':
-      return <Ionicons name="star" size={size} color={color} />;
+      return <Star size={size} color={color} strokeWidth={strokeWidth} />;
     case 'shield':
-      return <Feather name="shield" size={size} color={color} />;
+      return <Shield size={size} color={color} strokeWidth={strokeWidth} />;
     case 'x':
-      return <Feather name="x" size={size} color={color} />;
+      return <X size={size} color={color} strokeWidth={strokeWidth} />;
     case 'bell':
-      return <Feather name="bell" size={size} color={color} />;
+      return <Bell size={size} color={color} strokeWidth={strokeWidth} />;
     case 'sparkle':
-      return <Ionicons name="sparkles-outline" size={size} color={color} />;
+      return <Sparkles size={size} color={color} strokeWidth={strokeWidth} />;
     case 'phone-end':
-      return <MaterialCommunityIcons name="phone-hangup" size={size} color={color} />;
+      return <PhoneOff size={size} color={color} strokeWidth={strokeWidth} />;
     case 'card':
-      return <Feather name="credit-card" size={size} color={color} />;
+      return <CreditCard size={size} color={color} strokeWidth={strokeWidth} />;
     case 'calendar':
-      return <Feather name="calendar" size={size} color={color} />;
+      return <Calendar size={size} color={color} strokeWidth={strokeWidth} />;
     case 'arrow-right':
-      return <Feather name="arrow-right" size={size} color={color} />;
+      return <ArrowRight size={size} color={color} strokeWidth={strokeWidth} />;
+    case 'send':
+      return <Send size={size} color={color} strokeWidth={strokeWidth} />;
     case 'whatsapp':
       return <Ionicons name="logo-whatsapp" size={size} color={color} />;
     case 'logout':
-      return <Feather name="log-out" size={size} color={color} />;
+      return <LogOut size={size} color={color} strokeWidth={strokeWidth} />;
     case 'plus':
-      return <Feather name="plus" size={size} color={color} />;
+      return <Plus size={size} color={color} strokeWidth={strokeWidth} />;
     case 'eye':
-      return <Feather name="eye" size={size} color={color} />;
+      return <Eye size={size} color={color} strokeWidth={strokeWidth} />;
     case 'eye-off':
-      return <Feather name="eye-off" size={size} color={color} />;
+      return <EyeOff size={size} color={color} strokeWidth={strokeWidth} />;
     case 'alert-circle':
-      return <Feather name="alert-circle" size={size} color={color} />;
+      return <AlertCircle size={size} color={color} strokeWidth={strokeWidth} />;
     case 'check-circle':
-      return <Feather name="check-circle" size={size} color={color} />;
+      return <CheckCircle size={size} color={color} strokeWidth={strokeWidth} />;
     case 'info':
-      return <Feather name="info" size={size} color={color} />;
+      return <Info size={size} color={color} strokeWidth={strokeWidth} />;
     case 'alert-triangle':
-      return <Feather name="alert-triangle" size={size} color={color} />;
+      return <AlertTriangle size={size} color={color} strokeWidth={strokeWidth} />;
     case 'play':
-      return <Feather name="play" size={size} color={color} />;
+      return <Play size={size} color={color} strokeWidth={strokeWidth} />;
     case 'pause':
-      return <Feather name="pause" size={size} color={color} />;
+      return <Pause size={size} color={color} strokeWidth={strokeWidth} />;
     case 'volume':
-      return <Feather name="volume-2" size={size} color={color} />;
+      return <Volume2 size={size} color={color} strokeWidth={strokeWidth} />;
     case 'book-open':
-      return <Feather name="book-open" size={size} color={color} />;
+      return <BookOpen size={size} color={color} strokeWidth={strokeWidth} />;
     case 'trophy':
-      return <Ionicons name="trophy-outline" size={size} color={color} />;
+      return <Trophy size={size} color={color} strokeWidth={strokeWidth} />;
     case 'trending-up':
-      return <Feather name="trending-up" size={size} color={color} />;
+      return <TrendingUp size={size} color={color} strokeWidth={strokeWidth} />;
     case 'envelope':
-      return <Feather name="mail" size={size} color={color} />;
+      return <Mail size={size} color={color} strokeWidth={strokeWidth} />;
     default:
       return null;
   }

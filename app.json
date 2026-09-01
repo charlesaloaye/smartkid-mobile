@@ -10,14 +10,26 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.smartkidtutor.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow SmartKid Tutor to access your camera so you can take a profile picture.",
+        "NSPhotoLibraryUsageDescription": "Allow SmartKid Tutor to access your photos so you can choose a profile picture.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "smartkidtutor",
+              "ng.smartkidtutor.app",
+              "com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms"
+            ]
+          }
+        ]
       },
-      "buildNumber": "5"
+      "buildNumber": "9"
     },
     "android": {
       "package": "ng.smartkidtutor.app",
-      "versionCode": 6,
+      "versionCode": 11,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,10 +38,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
@@ -51,24 +59,33 @@
       "expo-splash-screen",
       "expo-updates",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SmartKid Tutor to access your photos so you can choose a profile picture.",
+          "cameraPermission": "Allow SmartKid Tutor to access your camera so you can take a profile picture."
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": "Allow SmartKid Tutor to use your microphone so your child can talk to Ada."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": ["arm64-v8a", "armeabi-v7a"]
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "0d1b447c-42af-4bb9-83b0-537687cb07b7"
       }
     },
-    "owner": "charlestechy0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/0d1b447c-42af-4bb9-83b0-537687cb07b7"
-    }
+    "owner": "charlestechy0"
   }
 }

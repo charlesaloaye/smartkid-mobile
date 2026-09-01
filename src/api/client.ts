@@ -17,6 +17,7 @@ const TOKEN_KEY = 'smartkid_auth_token';
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   headers: { Accept: 'application/json' },
 });
 
@@ -42,6 +43,9 @@ export async function getToken() {
 
 export function extractErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      return 'Request timed out connecting to the server. Please check your backend server.';
+    }
     const data = err.response?.data as
       | { message?: string; errors?: Record<string, string[]> }
       | undefined;
@@ -53,6 +57,13 @@ export function extractErrorMessage(err: unknown): string {
     if (err.message === 'Network Error') {
       return 'Cannot reach the SmartKid server. Check your connection and try again.';
     }
+    if (err.message) return err.message;
+  }
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  if (typeof err === 'string' && err.trim().length > 0) {
+    return err;
   }
   return 'Something went wrong. Please try again.';
 }

@@ -6,16 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.smartkidtutor.ng/api",
-        "EXPO_PUBLIC_API_PORT": "8010"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "87739056632-itk3huen5cmtl91e8sghk3i64atsu61r.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "87739056632-b9b8r20nssgehjggnrdm9c6k13cvqdgc.apps.googleusercontent.com",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx3072m -XX:MaxMetaspaceSize=512m\" -Dorg.gradle.parallel=false -Dorg.gradle.vfs.watch=false"
       }
     }
   },

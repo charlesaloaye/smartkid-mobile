@@ -1,4 +1,14 @@
-import * as Speech from 'expo-speech';
+/**
+ * Safe wrapper around expo-speech with natural cadence and fallbacks.
+ * Prevents app crashing if ExpoSpeech native module is unavailable.
+ */
+
+let SpeechModule: typeof import('expo-speech') | null = null;
+try {
+  SpeechModule = require('expo-speech');
+} catch {
+  SpeechModule = null;
+}
 
 /**
  * Language preference order for a natural African / international English voice.
@@ -16,6 +26,10 @@ export const NIGERIAN_SPEECH_PARAMS = {
 };
 
 let cachedVoiceId: string | null | undefined = undefined; // undefined = not yet resolved
+
+export function isSpeechAvailable(): boolean {
+  return !!SpeechModule;
+}
 
 /**
  * Prepares raw message text for TTS by stripping markdown syntax,
@@ -65,9 +79,10 @@ export function prepareTextForSpeech(text: string): string {
  */
 export async function getNigerianVoiceId(): Promise<string | undefined> {
   if (cachedVoiceId !== undefined) return cachedVoiceId ?? undefined;
+  if (!SpeechModule) return undefined;
 
   try {
-    const available = await Speech.getAvailableVoicesAsync();
+    const available = await SpeechModule.getAvailableVoicesAsync();
 
     if (!available || available.length === 0) {
       cachedVoiceId = null;
@@ -79,7 +94,7 @@ export async function getNigerianVoiceId(): Promise<string | undefined> {
       const match = available.find(
         (v) =>
           (v.language === locale || v.language?.startsWith(locale)) &&
-          (v.quality === Speech.VoiceQuality.Enhanced || (v.quality as string) === 'enhanced' || (v as any).quality === 'premium')
+          (v.quality === SpeechModule?.VoiceQuality?.Enhanced || (v.quality as string) === 'enhanced' || (v as any).quality === 'premium')
       );
       if (match) {
         cachedVoiceId = match.identifier;
@@ -111,27 +126,96 @@ export async function getNigerianVoiceId(): Promise<string | undefined> {
   }
 }
 
-export type NigerianSpeakOptions = Omit<Speech.SpeechOptions, 'voice' | 'language' | 'rate' | 'pitch'> & {
+export type NigerianSpeakOptions = {
   onDone?: () => void;
-  onError?: () => void;
+  onError?: (err?: any) => void;
+  onStopped?: () => void;
 };
 
 /**
  * Speaks text using the best available voice with natural cadence and text sanitization.
  */
 export async function speakNigerian(text: string, options: NigerianSpeakOptions = {}): Promise<void> {
+  if (!SpeechModule) {
+    options.onError?.(new Error('Speech not supported on this client'));
+    return;
+  }
+
   const spokenText = prepareTextForSpeech(text);
   if (!spokenText) {
     options.onDone?.();
     return;
   }
 
-  const voiceId = await getNigerianVoiceId();
-
-  Speech.speak(spokenText, {
-    ...NIGERIAN_SPEECH_PARAMS,
-    ...(voiceId ? { voice: voiceId } : { language: 'en-NG' }),
-    ...options,
-  });
+  try {
+    const voiceId = await getNigerianVoiceId();
+    SpeechModule.speak(spokenText, {
+      ...NIGERIAN_SPEECH_PARAMS,
+      ...(voiceId ? { voice: voiceId } : { language: 'en-NG' }),
+      ...options,
+    });
+  } catch (err) {
+    options.onError?.(err);
+  }
 }
 
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
+
+let activeAudioPlayer: AudioPlayer | null = null;
+
+export async function playAudioBase64Async(
+  base64Audio: string,
+  options: NigerianSpeakOptions = {}
+): Promise<void> {
+  await stopSpeechAsync();
+  try {
+    await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+    const uri = base64Audio.startsWith('data:') ? base64Audio : `data:audio/mp3;base64,${base64Audio}`;
+    const player = createAudioPlayer({ uri });
+    activeAudioPlayer = player;
+
+    player.addListener('playbackStatusUpdate', (status: any) => {
+      if (status.didJustFinish) {
+        options.onDone?.();
+        if (activeAudioPlayer === player) {
+          activeAudioPlayer = null;
+        }
+      }
+    });
+
+    player.play();
+  } catch (err) {
+    options.onError?.(err);
+  }
+}
+
+export async function stopSpeechAsync(): Promise<void> {
+  try {
+    if (activeAudioPlayer) {
+      activeAudioPlayer.pause();
+      activeAudioPlayer.remove();
+      activeAudioPlayer = null;
+    }
+  } catch {
+    // Ignore error
+  }
+  try {
+    if (SpeechModule) {
+      await SpeechModule.stop();
+    }
+  } catch {
+    // Ignore error
+  }
+}
+
+export async function isSpeakingAsync(): Promise<boolean> {
+  if (activeAudioPlayer?.playing) return true;
+  try {
+    if (SpeechModule) {
+      return await SpeechModule.isSpeakingAsync();
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}

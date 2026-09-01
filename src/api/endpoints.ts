@@ -8,6 +8,7 @@ import type {
   PlanKey,
   SendMessageResponse,
   SendVoiceMessageResponse,
+  SendImageMessageResponse,
   SubscriptionResponse,
   SubscriptionSummary,
   User,
@@ -32,6 +33,24 @@ export async function loginParent(payload: { email: string; password: string }) 
     '/login',
     payload
   );
+  return data;
+}
+
+export async function socialLogin(payload: {
+  provider: 'google' | 'apple';
+  email: string;
+  name?: string;
+  provider_id: string;
+}) {
+  const { data } = await api.post<{ access_token: string; token_type: string; user: User; role: string }>(
+    '/auth/social',
+    payload
+  );
+  return data;
+}
+
+export async function deleteAccount() {
+  const { data } = await api.delete<{ message: string }>('/user');
   return data;
 }
 
@@ -125,6 +144,37 @@ export async function sendVoiceMessage(childId: number, audioUri: string) {
     form,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
+  return data;
+}
+
+export async function sendImageMessage(childId: number, imageUri: string, message?: string) {
+  const form = new FormData();
+  const filename = imageUri.split('/').pop() || 'photo.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()}` : 'image/jpeg';
+
+  form.append('image', {
+    uri: imageUri,
+    name: filename,
+    type,
+  } as unknown as Blob);
+
+  if (message && message.trim()) {
+    form.append('message', message.trim());
+  }
+
+  const { data } = await api.post<SendImageMessageResponse>(
+    `/children/${childId}/image-messages`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return data;
+}
+
+export async function synthesizeSpeech(childId: number, text: string) {
+  const { data } = await api.post<{ audio_base64?: string }>(`/children/${childId}/synthesize-speech`, {
+    text,
+  });
   return data;
 }
 

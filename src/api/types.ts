@@ -35,18 +35,29 @@ export type Message = {
   sender: 'child' | 'ai';
   message: string;
   subject?: string | null;
-  metadata?: { channel?: 'app' | 'whatsapp' } | null;
+  metadata?: {
+    channel?: 'app' | 'whatsapp';
+    type?: 'image' | 'text' | 'voice';
+    image_url?: string;
+    image_path?: string;
+    reply_to_image?: boolean;
+  } | null;
   created_at: string;
 };
 
 export type SendMessageResponse = {
   message: Message;
   reply: Message;
+  audio_base64?: string;
 };
 
 export type SendVoiceMessageResponse = SendMessageResponse & {
   transcript: string;
   audio_url?: string;
+  audio_base64?: string;
+};
+
+export type SendImageMessageResponse = SendMessageResponse & {
   audio_base64?: string;
 };
 

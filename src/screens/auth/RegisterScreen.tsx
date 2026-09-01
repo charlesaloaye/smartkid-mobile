@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, ImageBackground, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as WebBrowser from 'expo-web-browser';
+import * as Application from 'expo-application';
+import * as Google from 'expo-auth-session/providers/google';
+import { exchangeCodeAsync, makeRedirectUri } from 'expo-auth-session';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
@@ -8,15 +14,220 @@ import { colors, radii, shadow, type } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { extractErrorMessage } from '../../api/client';
 import { showToast } from '../../utils/toast';
+// Safely complete auth session without throwing on incompatible runtimes
+try {
+  WebBrowser.maybeCompleteAuthSession();
+} catch {}
 
 export default function RegisterScreen({ navigation }: any) {
-  const { register } = useAuth();
+  const { register, loginWithSocial } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const processedCodeRef = React.useRef<string | null>(null);
+
+  // ── Google OAuth via expo-auth-session ──────────────────────────────────
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    shouldAutoExchangeCode: false,
+  });
+
+  // Decode JWT payload for id_token without external dependencies
+  const decodeJwt = (jwt: string) => {
+    try {
+      const parts = jwt.split('.');
+      if (parts.length < 2) return null;
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      let str = '';
+      for (let i = 0; i < padded.length; i += 4) {
+        const enc1 = chars.indexOf(padded.charAt(i));
+        const enc2 = chars.indexOf(padded.charAt(i + 1));
+        const enc3 = chars.indexOf(padded.charAt(i + 2));
+        const enc4 = chars.indexOf(padded.charAt(i + 3));
+        const chr1 = (enc1 << 2) | (enc2 >> 4);
+        const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        const chr3 = ((enc3 & 3) << 6) | enc4;
+        str += String.fromCharCode(chr1);
+        if (enc3 !== 64 && chr2 !== 0) str += String.fromCharCode(chr2);
+        if (enc4 !== 64 && chr3 !== 0) str += String.fromCharCode(chr3);
+      }
+      return JSON.parse(str);
+    } catch {
+      return null;
+    }
+  };
+
+  const handleGoogleSuccess = async (res: any) => {
+    const code = res.params?.code;
+    if (code && processedCodeRef.current === code) {
+      return;
+    }
+    if (code) {
+      processedCodeRef.current = code;
+    }
+
+    try {
+      setSocialLoading('google');
+      let accessToken = res.authentication?.accessToken ?? res.params?.access_token;
+      let idToken = res.authentication?.idToken ?? res.params?.id_token;
+
+      // Exchange authorization code for tokens if not yet provided directly
+      if (!accessToken && !idToken && code) {
+        const clientId =
+          Platform.select({
+            ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+            android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+            default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          }) || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+
+        const redirectUri =
+          googleRequest?.redirectUri ||
+          makeRedirectUri({
+            native: `${Application.applicationId}:/oauthredirect`,
+          });
+
+        const tokenResult = await exchangeCodeAsync(
+          {
+            clientId,
+            code,
+            redirectUri,
+            extraParams: {
+              code_verifier: googleRequest?.codeVerifier || '',
+            },
+          },
+          Google.discovery
+        );
+        accessToken = tokenResult.accessToken;
+        idToken = tokenResult.idToken;
+      }
+
+      let userEmail: string | undefined;
+      let userName: string | undefined;
+      let providerId: string | undefined;
+
+      if (idToken) {
+        const decoded = decodeJwt(idToken);
+        if (decoded?.email) {
+          userEmail = decoded.email;
+          userName = decoded.name || decoded.given_name;
+          providerId = decoded.sub;
+        }
+      }
+
+      if ((!userEmail || !providerId) && accessToken) {
+        try {
+          const profileRes = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            userEmail = userEmail || profile.email;
+            userName = userName || profile.name;
+            providerId = providerId || profile.id;
+          }
+        } catch {}
+      }
+
+      if (!userEmail || !providerId) {
+        throw new Error('Could not retrieve your Google account details. Please try again.');
+      }
+
+      await loginWithSocial({
+        provider: 'google',
+        email: userEmail,
+        name: userName || (userEmail ? userEmail.split('@')[0] : 'Google User'),
+        provider_id: providerId,
+      });
+      showToast.success('Account created with Google!', 'Welcome');
+    } catch (e) {
+      showToast.error(extractErrorMessage(e), 'Google Sign-Up Failed');
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      handleGoogleSuccess(googleResponse);
+    } else if (googleResponse) {
+      setSocialLoading(null);
+    }
+  }, [googleResponse]);
+
+  const onGoogleSignUp = async () => {
+    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID && !process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
+      showToast.info('Google Sign-In is not configured yet. Add GOOGLE client IDs to .env', 'Setup Needed');
+      return;
+    }
+    setSocialLoading('google');
+    try {
+      const res = await promptGoogleAsync();
+      if (res?.type === 'success') {
+        await handleGoogleSuccess(res);
+      } else {
+        setSocialLoading(null);
+      }
+    } catch (e) {
+      showToast.error(extractErrorMessage(e), 'Google Sign-Up Failed');
+      setSocialLoading(null);
+    }
+  };
+
+  const onAppleSignUp = async () => {
+    if (Platform.OS !== 'ios') {
+      showToast.info('Apple ID Sign-In is only available on iOS devices.', 'Apple Sign-Up');
+      return;
+    }
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    if (!isAvailable) {
+      showToast.info('Apple Sign-In is not supported on this device or environment.', 'Apple Sign-Up');
+      return;
+    }
+    setSocialLoading('apple');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const appleEmail = credential.email ?? `${credential.user}@privaterelay.appleid.com`;
+      const appleName = credential.fullName
+        ? `${credential.fullName.givenName ?? ''} ${credential.fullName.familyName ?? ''}`.trim()
+        : undefined;
+      await loginWithSocial({
+        provider: 'apple',
+        email: appleEmail,
+        name: appleName,
+        provider_id: credential.user,
+      });
+      showToast.success('Account created with Apple!', 'Welcome');
+    } catch (e: any) {
+      if (e?.code === 'ERR_REQUEST_CANCELED' || e?.code === 'ERR_CANCELED' || e?.code === '1001') {
+        // User cancelled the Apple Sign-In sheet
+        return;
+      }
+      const rawMsg = extractErrorMessage(e);
+      if (rawMsg.includes('RequestUnknownException') || e?.code === 'ERR_REQUEST_UNKNOWN') {
+        showToast.error(
+          'Please ensure an Apple ID is signed in under Settings on your device/simulator.',
+          'Apple Sign-In Required'
+        );
+      } else {
+        showToast.error(rawMsg, 'Apple Sign-Up Failed');
+      }
+    } finally {
+      setSocialLoading(null);
+    }
+  };
 
   const onSubmit = async () => {
     if (!name || !email || !password || !confirm) {
@@ -108,6 +319,55 @@ export default function RegisterScreen({ navigation }: any) {
           </Pressable>
 
           <Button label="Create Account" onPress={onSubmit} loading={loading} variant="amber" style={{ marginTop: 6 }} />
+
+          <View style={styles.orDividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.orText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialButtonsRow}>
+            {/* Google Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.socialBtn,
+                pressed && { backgroundColor: '#F3F4F6', transform: [{ scale: 0.97 }] },
+                socialLoading === 'google' && { opacity: 0.7 },
+              ]}
+              onPress={onGoogleSignUp}
+              disabled={!!socialLoading || loading}
+            >
+              {socialLoading === 'google' ? (
+                <Ionicons name="sync" size={18} color="#EA4335" />
+              ) : (
+                <Ionicons name="logo-google" size={18} color="#EA4335" />
+              )}
+              <Text style={styles.socialBtnText}>
+                {socialLoading === 'google' ? 'Signing in…' : 'Google'}
+              </Text>
+            </Pressable>
+
+            {/* Apple Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.socialBtn,
+                styles.appleBtn,
+                pressed && { opacity: 0.82, transform: [{ scale: 0.97 }] },
+                socialLoading === 'apple' && { opacity: 0.7 },
+              ]}
+              onPress={onAppleSignUp}
+              disabled={!!socialLoading || loading}
+            >
+              {socialLoading === 'apple' ? (
+                <Ionicons name="sync" size={20} color="#FFFFFF" />
+              ) : (
+                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+              )}
+              <Text style={styles.appleBtnText}>
+                {socialLoading === 'apple' ? 'Signing in…' : 'Apple ID'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable style={styles.footer} onPress={() => navigation.replace('Login')}>
@@ -196,6 +456,56 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   error: { fontFamily: type.bodyMedium, fontSize: 13, color: colors.danger, marginBottom: 14, textAlign: 'center' },
+  orDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  orText: {
+    fontFamily: type.body,
+    fontSize: 12,
+    color: colors.mutedLight,
+    letterSpacing: 0.3,
+    textTransform: 'lowercase',
+  },
+  socialButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 4,
+  },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 10,
+    borderRadius: radii.xl,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  socialBtnText: {
+    fontFamily: type.bodyMedium,
+    fontSize: 13,
+    color: colors.charcoal,
+  },
+  appleBtn: {
+    backgroundColor: 'rgba(17,17,17,0.85)',
+    borderColor: 'transparent',
+  },
+  appleBtnText: {
+    fontFamily: type.bodyMedium,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
   footer: { marginTop: 24, alignItems: 'center', paddingBottom: 30 },
   footerText: { fontFamily: type.body, fontSize: 14, color: colors.muted },
   footerLink: { fontFamily: type.bodyBold, color: colors.amberDark },

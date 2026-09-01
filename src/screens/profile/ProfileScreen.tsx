@@ -19,16 +19,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import appStorage from '../../utils/storage';
 import { Icon, IconName } from '../../components/Icon';
 import { Card } from '../../components/Card';
 import { Pill } from '../../components/Pill';
 import { colors, radii, shadow, type } from '../../theme';
-import * as LocalAuthentication from 'expo-local-authentication';
+import Biometrics from '../../utils/biometrics';
 import { BIOMETRICS_ENABLED_KEY, useAuth } from '../../context/AuthContext';
 import { useAsync } from '../../utils/useAsync';
 import { showToast } from '../../utils/toast';
 import {
+  deleteAccount,
   fetchChildren,
   fetchDashboard,
   updateUserPassword,
@@ -36,9 +37,9 @@ import {
 } from '../../api/endpoints';
 import { EmptyState } from '../../components/EmptyState';
 
-const SEND_ON_ENTER_KEY = '@send_on_enter';
-const WHATSAPP_ALERTS_KEY = '@whatsapp_alerts';
-const SOUND_EFFECTS_KEY = '@sound_effects';
+const SEND_ON_ENTER_KEY = 'smartkid_send_on_enter';
+const WHATSAPP_ALERTS_KEY = 'smartkid_whatsapp_alerts';
+const SOUND_EFFECTS_KEY = 'smartkid_sound_effects';
 
 const CHILD_AVATAR_COLORS: [string, string][] = [
   ['#1A5F7A', '#144F66'],
@@ -187,16 +188,16 @@ export default function ProfileScreen({ navigation }: any) {
   const { data: childrenList, refresh: refreshChildren } = useAsync(fetchChildren, []);
 
   useEffect(() => {
-    AsyncStorage.getItem(SEND_ON_ENTER_KEY).then((val) => {
+    appStorage.getItem(SEND_ON_ENTER_KEY).then((val) => {
       if (val !== null) setSendOnEnter(val === 'true');
     });
-    AsyncStorage.getItem(WHATSAPP_ALERTS_KEY).then((val) => {
+    appStorage.getItem(WHATSAPP_ALERTS_KEY).then((val) => {
       if (val !== null) setWhatsappAlerts(val === 'true');
     });
-    AsyncStorage.getItem(SOUND_EFFECTS_KEY).then((val) => {
+    appStorage.getItem(SOUND_EFFECTS_KEY).then((val) => {
       if (val !== null) setSoundEffects(val === 'true');
     });
-    AsyncStorage.getItem(BIOMETRICS_ENABLED_KEY).then((val) => {
+    appStorage.getItem(BIOMETRICS_ENABLED_KEY).then((val) => {
       if (val !== null) setBiometricsEnabled(val === 'true');
     });
   }, []);
@@ -204,8 +205,8 @@ export default function ProfileScreen({ navigation }: any) {
   const toggleBiometrics = async (val: boolean) => {
     if (val) {
       try {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        const hasHardware = await Biometrics.hasHardwareAsync();
+        const isEnrolled = await Biometrics.isEnrolledAsync();
         if (!hasHardware || !isEnrolled) {
           showToast.warning(
             'Face ID or Touch ID / Fingerprint is not supported or configured on this device.',
@@ -214,14 +215,14 @@ export default function ProfileScreen({ navigation }: any) {
           return;
         }
 
-        const res = await LocalAuthentication.authenticateAsync({
+        const res = await Biometrics.authenticateAsync({
           promptMessage: 'Authenticate to enable biometric login',
           fallbackLabel: 'Use Password',
         });
 
         if (res.success) {
           setBiometricsEnabled(true);
-          await AsyncStorage.setItem(BIOMETRICS_ENABLED_KEY, 'true');
+          await appStorage.setItem(BIOMETRICS_ENABLED_KEY, 'true');
           showToast.success('You can now log in securely using Face ID / Touch ID.', 'Biometrics Enabled');
         }
       } catch (err: any) {
@@ -229,23 +230,23 @@ export default function ProfileScreen({ navigation }: any) {
       }
     } else {
       setBiometricsEnabled(false);
-      await AsyncStorage.setItem(BIOMETRICS_ENABLED_KEY, 'false');
+      await appStorage.setItem(BIOMETRICS_ENABLED_KEY, 'false');
     }
   };
 
   const toggleSendOnEnter = async (val: boolean) => {
     setSendOnEnter(val);
-    await AsyncStorage.setItem(SEND_ON_ENTER_KEY, val ? 'true' : 'false');
+    await appStorage.setItem(SEND_ON_ENTER_KEY, val ? 'true' : 'false');
   };
 
   const toggleWhatsappAlerts = async (val: boolean) => {
     setWhatsappAlerts(val);
-    await AsyncStorage.setItem(WHATSAPP_ALERTS_KEY, val ? 'true' : 'false');
+    await appStorage.setItem(WHATSAPP_ALERTS_KEY, val ? 'true' : 'false');
   };
 
   const toggleSoundEffects = async (val: boolean) => {
     setSoundEffects(val);
-    await AsyncStorage.setItem(SOUND_EFFECTS_KEY, val ? 'true' : 'false');
+    await appStorage.setItem(SOUND_EFFECTS_KEY, val ? 'true' : 'false');
   };
 
   const handleRefresh = () => {
@@ -265,6 +266,29 @@ export default function ProfileScreen({ navigation }: any) {
         },
       },
     ]);
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account & Data',
+      'This will permanently delete your parent account, child profiles, homework conversations, and all learning history. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              showToast.success('Your account and data have been permanently removed.');
+              await logout();
+            } catch (err: any) {
+              showToast.error(err?.response?.data?.message || 'Could not delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openEditProfile = () => {
@@ -616,6 +640,16 @@ export default function ProfileScreen({ navigation }: any) {
             subtitle="Learn how we protect children's data in Nigeria"
             badge="NDPR Safe"
             onPress={() => setShowNdprModal(true)}
+          />
+          <View style={styles.rowDivider} />
+          <SettingRow
+            icon="trash"
+            iconBgColor="rgba(220, 38, 38, 0.1)"
+            iconColor={colors.danger}
+            label="Delete Account & Data"
+            subtitle="Permanently erase account, children & chat history"
+            tone="danger"
+            onPress={confirmDeleteAccount}
           />
         </Card>
 

@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   ImageSourcePropType,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,16 +14,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Button } from '../../components/Button';
+import { Icon, IconName } from '../../components/Icon';
 import { colors, type } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+// Adaptive size based on screen dimensions for optimal display on small & large devices
+const IMAGE_SIZE = Math.min(SCREEN_W * 0.72, SCREEN_H * 0.35, 290);
+
 type Slide = {
   key: string;
   image: ImageSourcePropType;
+  badgeIcon: IconName;
+  badgeText: string;
+  badgeBg: string;
+  badgeColor: string;
   accent: string;
-  eyebrow: string;
+  glowColor: string;
   title: string;
   body: string;
 };
@@ -30,58 +39,62 @@ type Slide = {
 const SLIDES: Slide[] = [
   {
     key: 'meet-ada',
-    image: require('../../../assets/onboarding/slide-1-meet-ada.png'),
-    accent: colors.amberDark,
-    eyebrow: 'Meet your tutor',
-    title: 'Meet Ada.',
-    body: 'An AI tutor built on the official NERDC curriculum — ready to teach every subject, every class, the way it feels at home.',
-  },
-  {
-    key: 'remembers',
-    image: require('../../../assets/onboarding/slide-2-remembers.png'),
+    image: require('../../../assets/onboarding/slide-1-meet-ada.jpg'),
+    badgeIcon: 'sparkle',
+    badgeText: 'MEET YOUR AI TUTOR',
+    badgeBg: 'rgba(26, 95, 122, 0.10)',
+    badgeColor: colors.tealDark,
     accent: colors.teal,
-    eyebrow: 'Personalised, always',
-    title: 'She remembers everything.',
-    body: 'Ada tracks strengths, gaps, and progress across every conversation — so your child never starts back at zero.',
+    glowColor: '#1A5F7A',
+    title: 'Personalized Learning\nfor Every Child',
+    body: 'Meet Ada — your child’s 24/7 personal AI teacher, aligned with the NERDC curriculum to make learning clear, engaging, and patient.',
   },
   {
-    key: 'whatsapp',
-    image: require('../../../assets/onboarding/slide-3-whatsapp.png'),
-    accent: '#3f5c50',
-    eyebrow: 'Where the learning happens',
-    title: 'Right inside WhatsApp.',
-    body: 'No new app for your child to learn. They chat and talk with Ada on WhatsApp — you watch the progress here.',
+    key: 'interactive-learning',
+    image: require('../../../assets/onboarding/slide-2-interactive.jpg'),
+    badgeIcon: 'book-open',
+    badgeText: 'STEP-BY-STEP GUIDANCE',
+    badgeBg: 'rgba(2, 132, 199, 0.10)',
+    badgeColor: '#0284C7',
+    accent: '#0284C7',
+    glowColor: '#0284C7',
+    title: 'Explains Simply.\nAdapts to Their Pace.',
+    body: 'From solving homework doubts to mastering tough subjects, Ada breaks down complex lessons into easy, digestible steps.',
   },
   {
-    key: 'parent',
-    image: require('../../../assets/onboarding/slide-4-parent.png'),
-    accent: '#b8441f',
-    eyebrow: 'You stay in the loop',
-    title: 'A report card, every week.',
-    body: 'See what they studied, where they’re thriving, and where Ada suggests extra practice — all from this app.',
+    key: 'track-progress',
+    image: require('../../../assets/onboarding/slide-3-progress.jpg'),
+    badgeIcon: 'trending-up',
+    badgeText: 'REAL PROGRESS & INSIGHTS',
+    badgeBg: 'rgba(217, 119, 6, 0.10)',
+    badgeColor: colors.amberDark,
+    accent: colors.amber,
+    glowColor: '#D97706',
+    title: 'Guiding Minds.\nBuilding Futures.',
+    body: 'Stay connected with weekly progress report cards, learning milestone alerts, and personalized practice plans for lasting confidence.',
   },
 ];
 
-function Backdrop({ accent }: { accent: string }) {
+function Backdrop({ glowColor }: { glowColor: string }) {
   return (
     <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
       <Defs>
-        <RadialGradient id="glow" cx="50%" cy="34%" r="55%">
-          <Stop offset="0%" stopColor={accent} stopOpacity={0.22} />
-          <Stop offset="60%" stopColor={accent} stopOpacity={0.07} />
-          <Stop offset="100%" stopColor={accent} stopOpacity={0} />
+        <RadialGradient id="bg-glow" cx="50%" cy="30%" r="60%">
+          <Stop offset="0%" stopColor={glowColor} stopOpacity={0.16} />
+          <Stop offset="55%" stopColor={glowColor} stopOpacity={0.05} />
+          <Stop offset="100%" stopColor={glowColor} stopOpacity={0} />
         </RadialGradient>
-        <Pattern id="motif" width={64} height={64} patternUnits="userSpaceOnUse">
-          <Circle cx={0} cy={0} r={19} fill="none" stroke={colors.charcoal} strokeOpacity={0.05} strokeWidth={1} />
-          <Circle cx={64} cy={0} r={19} fill="none" stroke={colors.charcoal} strokeOpacity={0.05} strokeWidth={1} />
-          <Circle cx={0} cy={64} r={19} fill="none" stroke={colors.charcoal} strokeOpacity={0.05} strokeWidth={1} />
-          <Circle cx={64} cy={64} r={19} fill="none" stroke={colors.charcoal} strokeOpacity={0.05} strokeWidth={1} />
-          <Circle cx={32} cy={32} r={2} fill={colors.charcoal} fillOpacity={0.05} />
+        <Pattern id="grid-dots" width={48} height={48} patternUnits="userSpaceOnUse">
+          <Circle cx={24} cy={24} r={1.5} fill={colors.charcoal} fillOpacity={0.04} />
+          <Circle cx={0} cy={0} r={1} fill={colors.charcoal} fillOpacity={0.03} />
+          <Circle cx={48} cy={0} r={1} fill={colors.charcoal} fillOpacity={0.03} />
+          <Circle cx={0} cy={48} r={1} fill={colors.charcoal} fillOpacity={0.03} />
+          <Circle cx={48} cy={48} r={1} fill={colors.charcoal} fillOpacity={0.03} />
         </Pattern>
       </Defs>
       <Rect width="100%" height="100%" fill={colors.cream} />
-      <Rect width="100%" height="100%" fill="url(#motif)" />
-      <Rect width="100%" height="100%" fill="url(#glow)" />
+      <Rect width="100%" height="100%" fill="url(#grid-dots)" />
+      <Rect width="100%" height="100%" fill="url(#bg-glow)" />
     </Svg>
   );
 }
@@ -124,7 +137,7 @@ export default function OnboardingScreen() {
           const inputRange = [(i - 1) * SCREEN_W, i * SCREEN_W, (i + 1) * SCREEN_W];
           const scale = scrollX.interpolate({
             inputRange,
-            outputRange: [0.75, 1, 0.75],
+            outputRange: [0.82, 1, 0.82],
             extrapolate: 'clamp',
           });
           const opacity = scrollX.interpolate({
@@ -134,35 +147,52 @@ export default function OnboardingScreen() {
           });
           const translateY = scrollX.interpolate({
             inputRange,
-            outputRange: [16, 0, 16],
+            outputRange: [18, 0, 18],
             extrapolate: 'clamp',
           });
 
           return (
             <SafeAreaView style={[styles.slide, { width: SCREEN_W }]} edges={['top', 'bottom']}>
-              <Backdrop accent={item.accent} />
-              <Pressable
-                style={styles.skip}
-                onPress={() => completeOnboarding('Register')}
-                hitSlop={12}
-                accessibilityRole="button"
-              >
-                <Text style={styles.skipText}>{isLast ? '' : 'Skip'}</Text>
-              </Pressable>
+              <Backdrop glowColor={item.glowColor} />
+
+              <View style={styles.topBar}>
+                <View style={styles.brandRow}>
+                  <View style={styles.brandDot} />
+                  <Text style={styles.brandText}>SmartKid</Text>
+                </View>
+                {!isLast && (
+                  <Pressable
+                    style={styles.skipBtn}
+                    onPress={() => completeOnboarding('Register')}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.skipText}>Skip</Text>
+                  </Pressable>
+                )}
+              </View>
 
               <View style={styles.centerArea}>
                 <Animated.View
                   style={[
-                    styles.imageWrap,
-                    { shadowColor: item.accent },
-                    { transform: [{ scale }, { translateY }], opacity },
+                    styles.imageCardContainer,
+                    {
+                      shadowColor: item.glowColor,
+                      transform: [{ scale }, { translateY }],
+                      opacity,
+                    },
                   ]}
                 >
-                  <Image source={item.image} style={styles.image} resizeMode="cover" />
+                  <View style={styles.imageCardBorder}>
+                    <Image source={item.image} style={styles.image} resizeMode="cover" />
+                  </View>
                 </Animated.View>
 
-                <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-                  <Text style={[styles.eyebrow, { color: item.accent }]}>{item.eyebrow}</Text>
+                <Animated.View style={[styles.textBlock, { opacity, transform: [{ translateY }] }]}>
+                  <View style={[styles.badge, { backgroundColor: item.badgeBg }]}>
+                    <Icon name={item.badgeIcon} size={13} color={item.badgeColor} />
+                    <Text style={[styles.badgeText, { color: item.badgeColor }]}>{item.badgeText}</Text>
+                  </View>
                   <Text style={styles.title}>{item.title}</Text>
                   <Text style={styles.body}>{item.body}</Text>
                 </Animated.View>
@@ -174,29 +204,28 @@ export default function OnboardingScreen() {
 
       <SafeAreaView edges={['bottom']} style={styles.footer}>
         <View style={styles.dots}>
-          {SLIDES.map((_, i) => {
+          {SLIDES.map((slide, i) => {
             const inputRange = [(i - 1) * SCREEN_W, i * SCREEN_W, (i + 1) * SCREEN_W];
             const dotWidth = scrollX.interpolate({
               inputRange,
-              outputRange: [7, 22, 7],
+              outputRange: [8, 26, 8],
               extrapolate: 'clamp',
             });
-            const dotColor = scrollX.interpolate({
+            const dotOpacity = scrollX.interpolate({
               inputRange,
-              outputRange: [0, 1, 0],
+              outputRange: [0.35, 1, 0.35],
               extrapolate: 'clamp',
             });
+
             return (
               <Animated.View
-                key={i}
+                key={slide.key}
                 style={[
                   styles.dot,
                   {
                     width: dotWidth,
-                    backgroundColor: dotColor.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['rgba(31,41,55,0.15)', colors.amber],
-                    }) as unknown as string,
+                    opacity: dotOpacity,
+                    backgroundColor: i === index ? slide.accent : 'rgba(15, 23, 42, 0.2)',
                   },
                 ]}
               />
@@ -204,26 +233,65 @@ export default function OnboardingScreen() {
           })}
         </View>
 
-        <Button label={isLast ? 'Get started' : 'Continue'} onPress={goNext} variant="amber" />
+        <Button
+          label={isLast ? 'Get Started' : 'Continue'}
+          onPress={goNext}
+          variant={isLast ? 'amber' : 'teal'}
+        />
 
-        {isLast && (
-          <Pressable style={styles.loginLink} onPress={() => completeOnboarding('Login')}>
-            <Text style={styles.loginLinkText}>I already have an account</Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={styles.loginLink}
+          onPress={() => completeOnboarding('Login')}
+          hitSlop={8}
+        >
+          <Text style={styles.loginPrompt}>
+            Already have an account? <Text style={styles.loginLinkText}>Log In</Text>
+          </Text>
+        </Pressable>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.cream },
-  slide: { flex: 1, paddingHorizontal: 28 },
-  skip: {
-    alignSelf: 'flex-end',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    minHeight: 20,
+  root: {
+    flex: 1,
+    backgroundColor: colors.cream,
+  },
+  slide: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  brandDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.teal,
+  },
+  brandText: {
+    fontFamily: type.displaySemi,
+    fontSize: 15,
+    color: colors.charcoal,
+    letterSpacing: 0.2,
+  },
+  skipBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.05)',
   },
   skipText: {
     fontFamily: type.bodySemi,
@@ -234,60 +302,80 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
-  imageWrap: {
-    width: 248,
-    height: 248,
-    borderRadius: 32,
-    marginBottom: 28,
-    overflow: 'hidden',
+  imageCardContainer: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    borderRadius: 30,
+    marginBottom: 24,
     backgroundColor: colors.sand,
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.28,
     shadowRadius: 24,
-    shadowOffset: { width: 0, height: 16 },
+    shadowOffset: { width: 0, height: 12 },
     elevation: 10,
+  },
+  imageCardBorder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  eyebrow: {
-    fontFamily: type.bodyBold,
-    fontSize: 11.5,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.amberDark,
-    textAlign: 'center',
+  textBlock: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 20,
     marginBottom: 12,
+    alignSelf: 'center',
+  },
+  badgeText: {
+    fontFamily: type.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   title: {
     fontFamily: type.display,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: SCREEN_H < 700 ? 23 : 26,
+    lineHeight: SCREEN_H < 700 ? 29 : 33,
     color: colors.charcoal,
     textAlign: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
+    letterSpacing: -0.3,
   },
   body: {
     fontFamily: type.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 14.5,
+    lineHeight: 22,
     color: colors.muted,
     textAlign: 'center',
-    maxWidth: 300,
+    maxWidth: 320,
     alignSelf: 'center',
   },
   footer: {
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   dot: {
     height: 7,
@@ -295,11 +383,15 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     alignSelf: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
+  },
+  loginPrompt: {
+    fontFamily: type.body,
+    fontSize: 13.5,
+    color: colors.muted,
   },
   loginLinkText: {
-    fontFamily: type.bodySemi,
-    fontSize: 13,
+    fontFamily: type.bodyBold,
     color: colors.teal,
   },
 });

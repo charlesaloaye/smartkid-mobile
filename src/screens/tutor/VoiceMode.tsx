@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Speech from 'expo-speech';
-import { speakNigerian } from '../../utils/speechUtils';
+import { playAudioBase64Async, speakNigerian, stopSpeechAsync } from '../../utils/speechUtils';
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -54,6 +53,7 @@ function Waveform({ active }: { active: boolean }) {
 }
 
 export function VoiceMode({ childName, subject, initialLongTalk = false, onClose, onResult, sendVoice }: Props) {
+  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<Status>('listening');
   const [isLongTalk, setIsLongTalk] = useState(initialLongTalk);
   const [caption, setCaption] = useState('');
@@ -84,7 +84,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
     return () => {
       mountedRef.current = false;
       closingRef.current = true;
-      Speech.stop();
+      stopSpeechAsync();
       recorder.stop().catch(() => {});
       setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
     };
@@ -200,19 +200,30 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
       onResult(res.message, res.reply);
       setStatus('speaking');
       setCaption(res.reply.message);
-      Speech.stop();
-      speakNigerian(res.reply.message, {
-        onDone: () => {
-          if (mountedRef.current && !closingRef.current) {
-            setTimeout(() => beginListening(), 250);
-          }
-        },
-        onError: () => {
-          if (mountedRef.current && !closingRef.current) {
-            setTimeout(() => beginListening(), 250);
-          }
-        },
-      });
+      stopSpeechAsync();
+
+      const onPlaybackDone = () => {
+        if (mountedRef.current && !closingRef.current) {
+          setTimeout(() => beginListening(), 250);
+        }
+      };
+
+      if (res.audio_base64) {
+        await playAudioBase64Async(res.audio_base64, {
+          onDone: onPlaybackDone,
+          onError: () => {
+            speakNigerian(res.reply.message, {
+              onDone: onPlaybackDone,
+              onError: onPlaybackDone,
+            });
+          },
+        });
+      } else {
+        speakNigerian(res.reply.message, {
+          onDone: onPlaybackDone,
+          onError: onPlaybackDone,
+        });
+      }
     } catch (e) {
       if (!mountedRef.current) return;
       setStatus('error');
@@ -222,7 +233,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
 
   const handleClose = () => {
     closingRef.current = true;
-    Speech.stop();
+    stopSpeechAsync();
     onClose();
   };
 
@@ -245,8 +256,8 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
     : [colors.amberLight, colors.amber];
 
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.topBar}>
+    <View style={styles.root}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
         <View style={styles.subjectPill}>
           <Text style={styles.subjectPillText}>{subject ? `${childName} · ${subject}` : childName}</Text>
         </View>
@@ -297,7 +308,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
         <Waveform active={status === 'listening' || status === 'speaking'} />
       </View>
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <Pressable style={styles.sideBtn} onPress={handleClose} hitSlop={10}>
           <Icon name="chat" size={18} color={colors.white} />
         </Pressable>
@@ -306,7 +317,7 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
           style={[styles.mainBtn, status === 'thinking' && { opacity: 0.5 }]}
           onPress={() => {
             if (status === 'speaking') {
-              Speech.stop();
+              stopSpeechAsync();
               beginListening();
             } else if (status === 'listening') {
               sendingRef.current = true;
@@ -326,14 +337,14 @@ export function VoiceMode({ childName, subject, initialLongTalk = false, onClose
           <Icon name="x" size={18} color={colors.white} />
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.navyDark },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
-  subjectPill: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
+  subjectPill: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '45%' },
   subjectPillText: { fontFamily: type.bodySemi, fontSize: 11.5, color: 'rgba(255,255,255,0.85)' },
   modeToggle: {
     flexDirection: 'row',
@@ -366,7 +377,7 @@ const styles = StyleSheet.create({
   waveform: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 24, marginTop: 22 },
   waveBar: { width: 3, height: 22, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)' },
 
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 26, paddingBottom: 30, paddingTop: 10 },
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 26, paddingTop: 10 },
   sideBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   mainBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
 });
