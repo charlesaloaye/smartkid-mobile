@@ -19,7 +19,7 @@ console.log('[API INIT] Base URL:', API_URL);
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 60000,
   headers: { Accept: 'application/json' },
 });
 
@@ -27,6 +27,10 @@ api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Let Axios/React Native set the boundary for multipart FormData requests
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
   }
   console.log(`[API ->] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
   return config;

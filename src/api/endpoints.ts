@@ -142,7 +142,10 @@ export async function sendVoiceMessage(childId: number, audioUri: string) {
   const { data } = await api.post<SendVoiceMessageResponse>(
     `/children/${childId}/voice-messages`,
     form,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    {
+      timeout: 90000,
+      transformRequest: (data) => data, // Prevent axios from transforming FormData
+    }
   );
   return data;
 }
@@ -166,7 +169,10 @@ export async function sendImageMessage(childId: number, imageUri: string, messag
   const { data } = await api.post<SendImageMessageResponse>(
     `/children/${childId}/image-messages`,
     form,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    {
+      timeout: 90000,
+      transformRequest: (data) => data, // Prevent axios from transforming FormData
+    }
   );
   return data;
 }

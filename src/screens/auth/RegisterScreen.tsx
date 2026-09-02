@@ -326,14 +326,16 @@ export default function RegisterScreen({ navigation }: any) {
 
           <Button label="Create Account" onPress={onSubmit} loading={loading} variant="amber" style={{ marginTop: 6 }} />
 
+          {/* Social login temporarily disabled — re-enable by removing the `false &&` */}
+          {false && (
           <View style={styles.orDividerRow}>
             <View style={styles.dividerLine} />
             <Text style={styles.orText}>or continue with</Text>
             <View style={styles.dividerLine} />
           </View>
-
+          )}
+          {false && (
           <View style={styles.socialButtonsRow}>
-            {/* Google Button */}
             <Pressable
               style={({ pressed }) => [
                 styles.socialBtn,
@@ -353,7 +355,6 @@ export default function RegisterScreen({ navigation }: any) {
               </Text>
             </Pressable>
 
-            {/* Apple Button */}
             <Pressable
               style={({ pressed }) => [
                 styles.socialBtn,
@@ -374,6 +375,7 @@ export default function RegisterScreen({ navigation }: any) {
               </Text>
             </Pressable>
           </View>
+          )}
         </View>
 
         <Pressable style={styles.footer} onPress={() => navigation.replace('Login')}>

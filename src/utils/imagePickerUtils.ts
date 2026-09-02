@@ -45,7 +45,7 @@ export const ImagePicker = {
       return await ImagePickerModule.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8,
+        quality: 0.5,
         ...options,
       });
     } catch (err: any) {
@@ -61,7 +61,7 @@ export const ImagePicker = {
       return await ImagePickerModule.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 0.8,
+        quality: 0.5,
         ...options,
       });
     } catch (err: any) {

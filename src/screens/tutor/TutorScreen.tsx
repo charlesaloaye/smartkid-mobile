@@ -135,7 +135,7 @@ export default function TutorScreen({ navigation, route }: any) {
         const res = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           allowsEditing: true,
-          quality: 0.8,
+          quality: 0.5, // Minified/optimized compression for fast upload & loading
         });
         if (!res.canceled && res.assets?.[0]?.uri) {
           setAttachedImage(res.assets[0].uri);
@@ -152,7 +152,7 @@ export default function TutorScreen({ navigation, route }: any) {
         const res = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: true,
-          quality: 0.8,
+          quality: 0.5, // Minified/optimized compression for fast upload & loading
         });
         if (!res.canceled && res.assets?.[0]?.uri) {
           setAttachedImage(res.assets[0].uri);
