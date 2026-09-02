@@ -33,7 +33,6 @@ export default function RegisterScreen({ navigation }: any) {
   // ── Google OAuth via expo-auth-session ──────────────────────────────────
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     shouldAutoExchangeCode: false,
   });
@@ -84,7 +83,6 @@ export default function RegisterScreen({ navigation }: any) {
         const clientId =
           Platform.select({
             ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-            android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
             default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           }) || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
