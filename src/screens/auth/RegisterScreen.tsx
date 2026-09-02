@@ -31,15 +31,18 @@ export default function RegisterScreen({ navigation }: any) {
   const processedCodeRef = React.useRef<string | null>(null);
 
   // ── Google OAuth via expo-auth-session ──────────────────────────────────
-  const redirectUri = Platform.select({
-    ios: 'com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms:/oauthredirect',
-    default: 'https://auth.expo.io/@charlestechy0/smartkid-tutor',
+  const redirectUri = makeRedirectUri({
+    native: Platform.select({
+      ios: 'com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms:/oauthredirect',
+      android: `${Application.applicationId || 'ng.smartkidtutor.app'}:/oauthredirect`,
+      default: 'smartkidtutor:/oauthredirect',
+    }),
   });
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     redirectUri,
     shouldAutoExchangeCode: false,
@@ -51,14 +54,15 @@ export default function RegisterScreen({ navigation }: any) {
       const parts = jwt.split('.');
       if (parts.length < 2) return null;
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+      const b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
       let str = '';
-      for (let i = 0; i < padded.length; i += 4) {
-        const enc1 = chars.indexOf(padded.charAt(i));
-        const enc2 = chars.indexOf(padded.charAt(i + 1));
-        const enc3 = chars.indexOf(padded.charAt(i + 2));
-        const enc4 = chars.indexOf(padded.charAt(i + 3));
+      let i = 0;
+      while (i < padded.length) {
+        const enc1 = b64.indexOf(padded.charAt(i++));
+        const enc2 = b64.indexOf(padded.charAt(i++));
+        const enc3 = b64.indexOf(padded.charAt(i++));
+        const enc4 = b64.indexOf(padded.charAt(i++));
         const chr1 = (enc1 << 2) | (enc2 >> 4);
         const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
         const chr3 = ((enc3 & 3) << 6) | enc4;
@@ -91,6 +95,7 @@ export default function RegisterScreen({ navigation }: any) {
         const clientId =
           Platform.select({
             ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+            android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
             default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           }) || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
