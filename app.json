@@ -85,6 +85,12 @@
             ]
           }
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms"
+        }
       ]
     ],
     "extra": {

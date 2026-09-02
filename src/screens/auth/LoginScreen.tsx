@@ -8,6 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Application from 'expo-application';
 import * as Google from 'expo-auth-session/providers/google';
 import { exchangeCodeAsync, makeRedirectUri } from 'expo-auth-session';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
@@ -22,6 +23,13 @@ try {
   WebBrowser.maybeCompleteAuthSession();
 } catch {}
 
+try {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  });
+} catch {}
+
 export default function LoginScreen({ navigation }: any) {
   const { login, loginWithBiometrics, loginWithSocial } = useAuth();
   const [email, setEmail] = useState('');
@@ -33,9 +41,17 @@ export default function LoginScreen({ navigation }: any) {
   const processedCodeRef = React.useRef<string | null>(null);
 
   // ── Google OAuth via expo-auth-session ──────────────────────────────────
+  const redirectUri = Platform.select({
+    ios: 'com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms:/oauthredirect',
+    default: 'https://auth.expo.io/@charlestechy0/smartkid-tutor',
+  });
+
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    redirectUri,
     shouldAutoExchangeCode: false,
   });
 
@@ -88,17 +104,13 @@ export default function LoginScreen({ navigation }: any) {
             default: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
           }) || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
-        const redirectUri =
-          googleRequest?.redirectUri ||
-          makeRedirectUri({
-            native: `${Application.applicationId}:/oauthredirect`,
-          });
+        const tokenRedirectUri = googleRequest?.redirectUri || redirectUri;
 
         const tokenResult = await exchangeCodeAsync(
           {
             clientId,
             code,
-            redirectUri,
+            redirectUri: tokenRedirectUri,
             extraParams: {
               code_verifier: googleRequest?.codeVerifier || '',
             },
@@ -170,6 +182,33 @@ export default function LoginScreen({ navigation }: any) {
     }
     setSocialLoading('google');
     try {
+      // 1. Try Native Google Sign-In first (preferred for production builds)
+      try {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const userInfo = await GoogleSignin.signIn();
+        const user = (userInfo as any).data?.user || (userInfo as any).user;
+        const idToken = (userInfo as any).data?.idToken || (userInfo as any).idToken;
+
+        if (user?.email) {
+          await loginWithSocial({
+            provider: 'google',
+            email: user.email,
+            name: user.name || user.givenName || user.email.split('@')[0],
+            provider_id: user.id || idToken || user.email,
+          });
+          showToast.success('Signed in with Google!', 'Welcome');
+          return;
+        }
+      } catch (nativeErr: any) {
+        if (nativeErr?.code === statusCodes?.SIGN_IN_CANCELLED) {
+          return;
+        }
+        if (nativeErr?.code === statusCodes?.IN_PROGRESS) {
+          return;
+        }
+      }
+
+      // 2. Fallback to web browser prompt (e.g. Expo Go)
       const res = await promptGoogleAsync();
       if (res?.type === 'success') {
         await handleGoogleSuccess(res);
@@ -178,6 +217,7 @@ export default function LoginScreen({ navigation }: any) {
       }
     } catch (e) {
       showToast.error(extractErrorMessage(e), 'Google Sign-In Failed');
+    } finally {
       setSocialLoading(null);
     }
   };
