@@ -33,18 +33,19 @@ export default function LoginScreen({ navigation }: any) {
   const processedCodeRef = React.useRef<string | null>(null);
 
   // ── Google OAuth via expo-auth-session ──────────────────────────────────
-  const redirectUri = makeRedirectUri({
-    native: Platform.select({
-      ios: 'com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms:/oauthredirect',
-      android: `${Application.applicationId || 'ng.smartkidtutor.app'}:/oauthredirect`,
-      default: 'smartkidtutor:/oauthredirect',
+  // For standalone builds: iOS uses reversed client ID scheme, Android uses expo proxy.
+  // Google Web Client only allows https:// URIs; native custom schemes must use iOS client.
+  const redirectUri = Platform.select({
+    ios: makeRedirectUri({
+      native: 'com.googleusercontent.apps.87739056632-7bb9jtr7u0ff6bm49tt6as340litfvms:/oauthredirect',
     }),
-  });
+    default: 'https://auth.expo.io/@charlestechy0/smartkid-tutor',
+  }) as string;
 
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     redirectUri,
     shouldAutoExchangeCode: false,
