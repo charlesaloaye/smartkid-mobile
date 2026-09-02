@@ -15,6 +15,8 @@ export const API_URL =
 
 const TOKEN_KEY = 'smartkid_auth_token';
 
+console.log('[API INIT] Base URL:', API_URL);
+
 export const api = axios.create({
   baseURL: API_URL,
   timeout: 15000,
@@ -26,8 +28,27 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log(`[API ->] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
   return config;
+}, (error) => {
+  console.error('[API REQUEST ERROR]', error);
+  return Promise.reject(error);
 });
+
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API <- ${response.status}] ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error(`[API ERROR ${error.response?.status ?? error.code ?? 'NETWORK_ERROR'}] ${error.config?.baseURL}${error.config?.url}:`, {
+      message: error.message,
+      code: error.code,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
 
 export async function saveToken(token: string) {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
