@@ -51,6 +51,11 @@ In App Store Connect, go to **My Apps -> SmartKid Tutor -> App Store**:
 * **Marketing URL**: `https://smartkidtutor.ng`
 * **Privacy Policy URL**: `https://smartkidtutor.ng/privacy-policy`
 
+### Content Rights (App Information)
+* **"Does this app contain, show, or access third-party content?"**:
+  * Select **No** (Recommended if all app graphics, questions, character designs, and AI prompts are original/in-house and you are not streaming or displaying third-party copyrighted media, books, or brand IP).
+  * *Note*: If you select **Yes**, Apple will prompt: *"Do you have the necessary rights to each piece of third-party content?"* — you must select **Yes**.
+
 ---
 
 ## 3. Full App Store Description
