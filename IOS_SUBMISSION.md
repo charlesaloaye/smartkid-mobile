@@ -104,10 +104,14 @@ In App Store Connect -> **App Privacy**:
      * Used for tracking: **No**
      * Linked to user identity: **No**
      * Usage Purpose: **App Functionality** (Captures child's voice questions for real-time speech-to-text AI tutoring responses).
-   * **Contact Info (Name, Email Address, Phone Number)**:
-     * Used for tracking: **No**
-     * Linked to user identity: **Yes** (Parent account authentication and optional WhatsApp integration).
-     * Usage Purpose: **App Functionality** and **Account Management**.
+   * **Contact Info -> Name**:
+     * **Usage Purposes**: Check **App Functionality** and **Product Personalization** (Leave Advertising, Analytics, and Other unchecked).
+     * **Linked to user identity**: **Yes** (Linked to parent and child profiles).
+     * **Used for tracking**: **No**
+   * **Contact Info -> Email Address & Phone Number**:
+     * **Usage Purpose**: **App Functionality** (Parent account authentication and optional WhatsApp integration).
+     * **Linked to user identity**: **Yes**
+     * **Used for tracking**: **No**
    * **Usage Data (Product Interaction)**:
      * Used for tracking: **No**
      * Linked to user identity: **Yes**
