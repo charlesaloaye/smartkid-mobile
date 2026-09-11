@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -13,9 +15,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '../../components/Icon';
 import { Card } from '../../components/Card';
 import { Pill } from '../../components/Pill';
+import { Button } from '../../components/Button';
 import { colors, radii, shadow, type } from '../../theme';
 import { useAsync } from '../../utils/useAsync';
-import { fetchDashboard } from '../../api/endpoints';
+import { fetchDashboard, resetChildPassword } from '../../api/endpoints';
+import { showToast } from '../../utils/toast';
+import { extractErrorMessage } from '../../api/client';
+import type { Child } from '../../api/types';
 
 import { EmptyState } from '../../components/EmptyState';
 
@@ -29,6 +35,38 @@ const AVATAR_GRADIENTS: [string, string][] = [
 export default function ChildrenScreen({ navigation }: any) {
   const { data, loading, refreshing, refresh } = useAsync(fetchDashboard, []);
   const children = data?.children ?? [];
+
+  const [activeCredsChild, setActiveCredsChild] = useState<Child | null>(null);
+  const [resettingPin, setResettingPin] = useState(false);
+  const [newPin, setNewPin] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleResetPin = async () => {
+    if (!activeCredsChild) return;
+    setResettingPin(true);
+    try {
+      const res = await resetChildPassword(activeCredsChild.id);
+      setNewPin(res.password);
+      setShowPassword(true);
+      showToast.success('New login PIN generated!', 'PIN Reset');
+      refresh();
+    } catch (e) {
+      showToast.error(extractErrorMessage(e), 'Failed to Reset PIN');
+    } finally {
+      setResettingPin(false);
+    }
+  };
+
+  const handleShareCreds = async () => {
+    if (!activeCredsChild) return;
+    const pin = newPin || activeCredsChild.passcode || activeCredsChild.plain_password || 'smartkid123';
+    try {
+      await Share.share({
+        title: `SmartKID Login for ${activeCredsChild.name}`,
+        message: `🌟 Hi ${activeCredsChild.name}! Here are your SmartKID Tutor login details:\n\n🎒 Username: ${activeCredsChild.username || activeCredsChild.name.toLowerCase().replace(/\s+/g, '')}\n🔑 Password / PIN: ${pin}\n\nOpen SmartKID, tap "Student Login", and start learning with Ada! 🚀`,
+      });
+    } catch {}
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -80,8 +118,8 @@ export default function ChildrenScreen({ navigation }: any) {
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <Icon name="whatsapp" size={13} color={colors.sage} />
-              <Text style={styles.summaryText}>WhatsApp Synced</Text>
+              <Icon name="sparkle" size={13} color={colors.teal} />
+              <Text style={styles.summaryText}>In-App & WhatsApp Synced</Text>
             </View>
           </View>
         )}
@@ -101,7 +139,7 @@ export default function ChildrenScreen({ navigation }: any) {
           <EmptyState
             icon="user"
             title="No children registered yet"
-            description="Connect your child's WhatsApp number so Ada can begin personalized AI tutoring sessions."
+            description="Add your child so they can begin personalized AI tutoring sessions with Ada."
             actionLabel="Add First Child"
             onAction={() => navigation.navigate('AddChild')}
           />
@@ -129,16 +167,30 @@ export default function ChildrenScreen({ navigation }: any) {
                 <View style={styles.childMetaContainer}>
                   <Text style={styles.childName}>{child.name}</Text>
                   <View style={styles.phoneRow}>
-                    <Icon name="whatsapp" size={13} color="#25D366" />
-                    <Text style={styles.phoneNumber}>{child.whatsapp_number}</Text>
+                    {child.username ? (
+                      <View style={styles.usernamePill}>
+                        <Icon name="sparkle" size={11} color={colors.teal} />
+                        <Text style={styles.usernameText}>@{child.username}</Text>
+                      </View>
+                    ) : null}
+                    {child.whatsapp_number ? (
+                      <View style={styles.whatsappRow}>
+                        <Icon name="whatsapp" size={12} color="#25D366" />
+                        <Text style={styles.phoneNumber}>{child.whatsapp_number}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
 
                 <Pressable
-                  style={styles.moreBtn}
-                  onPress={() => navigation.navigate('Tutor', { childId: child.id })}
+                  style={styles.credsQuickBtn}
+                  onPress={() => {
+                    setNewPin(null);
+                    setActiveCredsChild(child);
+                  }}
                 >
-                  <Icon name="chevron-right" size={18} color={colors.mutedLight} />
+                  <Icon name="sparkle" size={14} color={colors.amberDark} />
+                  <Text style={styles.credsQuickBtnText}>PIN / Login</Text>
                 </Pressable>
               </View>
 
@@ -200,15 +252,99 @@ export default function ChildrenScreen({ navigation }: any) {
 
                 <Pressable
                   style={styles.secondaryBtn}
-                  onPress={() => navigation.navigate('Activity')}
+                  onPress={() => {
+                    setNewPin(null);
+                    setActiveCredsChild(child);
+                  }}
                 >
-                  <Icon name="chart" size={16} color={colors.teal} />
+                  <Icon name="sparkle" size={16} color={colors.amberDark} />
                 </Pressable>
               </View>
             </Card>
           );
         })}
       </ScrollView>
+
+      {/* Credentials & PIN Reset Modal */}
+      <Modal
+        visible={!!activeCredsChild}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveCredsChild(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalBadge}>
+              <Icon name="sparkle" size={22} color={colors.teal} />
+            </View>
+            <Text style={styles.modalTitle}>{activeCredsChild?.name}'s Credentials</Text>
+            <Text style={styles.modalSubtitle}>
+              Use these details to log in on {activeCredsChild?.name}'s tablet or phone:
+            </Text>
+
+            <View style={styles.credentialsBox}>
+              <View style={styles.credentialRow}>
+                <Text style={styles.credentialLabel}>Student Username:</Text>
+                <Text style={styles.credentialValue}>
+                  {activeCredsChild?.username || activeCredsChild?.name.toLowerCase().replace(/\s+/g, '')}
+                </Text>
+              </View>
+              <View style={styles.credentialDivider} />
+              <View style={styles.credentialRow}>
+                <Text style={styles.credentialLabel}>Password / PIN:</Text>
+                <View style={styles.passwordValueRow}>
+                  <Text style={styles.credentialValue}>
+                    {showPassword
+                      ? (newPin || activeCredsChild?.passcode || activeCredsChild?.plain_password || 'smartkid123')
+                      : '••••••••'}
+                  </Text>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    style={styles.eyeBtn}
+                  >
+                    <Icon
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={18}
+                      color={colors.teal}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+
+            {newPin && (
+              <View style={styles.newPinAlert}>
+                <Text style={styles.newPinAlertText}>
+                  ✨ New PIN: <Text style={{ fontFamily: type.bodyBold }}>{newPin}</Text> (Share this with your child now!)
+                </Text>
+              </View>
+            )}
+
+            <Button
+              label={resettingPin ? 'Generating…' : 'Generate New PIN'}
+              onPress={handleResetPin}
+              loading={resettingPin}
+              variant="amber"
+              style={{ width: '100%', marginBottom: 10 }}
+            />
+
+            <Button
+              label="Share Details"
+              onPress={handleShareCreds}
+              variant="teal"
+              style={{ width: '100%', marginBottom: 10 }}
+            />
+
+            <Button
+              label="Close"
+              onPress={() => setActiveCredsChild(null)}
+              variant="outline"
+              style={{ width: '100%' }}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -496,4 +632,136 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: colors.white,
   },
+  usernamePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(26, 95, 122, 0.08)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: radii.pill,
+  },
+  usernameText: {
+    fontFamily: type.bodyBold,
+    fontSize: 11.5,
+    color: colors.teal,
+  },
+  whatsappRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  credsQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  credsQuickBtnText: {
+    fontFamily: type.bodyBold,
+    fontSize: 11,
+    color: colors.amberDark,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.xxl,
+    padding: 26,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    ...shadow.card,
+  },
+  modalBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(26, 95, 122, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontFamily: type.display,
+    fontSize: 22,
+    color: colors.charcoal,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontFamily: type.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  credentialsBox: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radii.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  credentialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  credentialLabel: {
+    fontFamily: type.bodySemi,
+    fontSize: 13,
+    color: colors.muted,
+  },
+  credentialValue: {
+    fontFamily: type.bodyBold,
+    fontSize: 15,
+    color: colors.teal,
+    letterSpacing: 0.5,
+  },
+  passwordValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  eyeBtn: {
+    padding: 4,
+    backgroundColor: 'rgba(26, 95, 122, 0.08)',
+    borderRadius: radii.sm,
+  },
+  credentialDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 8,
+  },
+  newPinAlert: {
+    width: '100%',
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    borderRadius: radii.lg,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.3)',
+  },
+  newPinAlertText: {
+    fontFamily: type.bodyMedium,
+    fontSize: 13,
+    color: colors.amberDark,
+    textAlign: 'center',
+  },
 });
+

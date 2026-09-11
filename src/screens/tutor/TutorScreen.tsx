@@ -22,7 +22,7 @@ import ImagePicker from '../../utils/imagePickerUtils';
 import { playAudioBase64Async, speakNigerian, stopSpeechAsync } from '../../utils/speechUtils';
 import { Icon } from '../../components/Icon';
 import { Pill } from '../../components/Pill';
-import { colors, radii, type } from '../../theme';
+import { colors, radii, shadow, type } from '../../theme';
 import {
   fetchChildDetail,
   fetchChildren,
@@ -37,6 +37,7 @@ import { renderFormattedText } from '../../utils/formatText';
 import type { Child, Message } from '../../api/types';
 import { VoiceMode } from './VoiceMode';
 import { EmptyState } from '../../components/EmptyState';
+import { useAuth } from '../../context/AuthContext';
 
 type ChatMessage = Message | { id: string; sender: 'system'; message: string };
 
@@ -44,6 +45,7 @@ const QUICK_REPLIES = ['Show me an example', 'I understand now', 'Can you explai
 
 export default function TutorScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
+  const { role, childUser, logout } = useAuth();
   const requestedChildId = route?.params?.childId as number | undefined;
   const [children, setChildren] = useState<Child[] | null>(null);
   const [activeChild, setActiveChild] = useState<Child | null>(null);
@@ -78,21 +80,31 @@ export default function TutorScreen({ navigation, route }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const list = await fetchChildren();
-        setChildren(list);
-        const requested = requestedChildId ? list.find((c) => c.id === requestedChildId) : null;
-        if (list.length > 0) setActiveChild(requested ?? list[0]);
+        if (role === 'child' && childUser) {
+          setActiveChild(childUser);
+          setChildren([childUser]);
+        } else {
+          const list = await fetchChildren();
+          setChildren(list);
+          const requested = requestedChildId ? list.find((c) => c.id === requestedChildId) : null;
+          if (list.length > 0) setActiveChild(requested ?? list[0]);
+        }
       } catch {
-        setChildren([]);
+        if (role === 'child' && childUser) {
+          setActiveChild(childUser);
+          setChildren([childUser]);
+        } else {
+          setChildren([]);
+        }
       } finally {
         setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [role, childUser]);
 
   useEffect(() => {
-    if (!requestedChildId || !children) return;
+    if (role === 'child' || !requestedChildId || !children) return;
     const requested = children.find((c) => c.id === requestedChildId);
     if (requested && requested.id !== activeChild?.id) setActiveChild(requested);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,13 +310,34 @@ export default function TutorScreen({ navigation, route }: any) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Ada</Text>
-          <Text style={styles.headerSub}>{activeChild?.name}{activeChild?.subjects?.[0] ? ` · ${activeChild.subjects[0]}` : ''}</Text>
+          <Text style={styles.headerTitle}>Ada Tutor</Text>
+          <Text style={styles.headerSub}>
+            {activeChild?.name ? `${activeChild.name}${activeChild?.grade ? ` · ${activeChild.grade}` : ''}` : 'Personalized Learning'}
+          </Text>
         </View>
-        <Pill label="Synced with WhatsApp" tone="sage" icon="whatsapp" />
+        {role === 'child' ? (
+          <Pressable
+            style={styles.childLogoutBtn}
+            onPress={() => {
+              Alert.alert(
+                'Log out',
+                `Are you sure you want to log out of ${activeChild?.name || 'student'}'s account?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Log Out', style: 'destructive', onPress: logout },
+                ]
+              );
+            }}
+          >
+            <Icon name="chevron-left" size={14} color={colors.charcoal} />
+            <Text style={styles.childLogoutText}>Log out</Text>
+          </Pressable>
+        ) : (
+          <Pill label="Synced with WhatsApp" tone="sage" icon="whatsapp" />
+        )}
       </View>
 
-      {children.length > 1 && (
+      {role !== 'child' && children.length > 1 && (
         <FlatList
           horizontal
           data={children}
@@ -594,4 +627,22 @@ const styles = StyleSheet.create({
   modalOptionText: { fontFamily: type.bodyMedium, fontSize: 14, color: colors.charcoal },
   modalCancel: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
   modalCancelText: { fontFamily: type.bodyBold, fontSize: 14, color: colors.mutedLight },
+  childLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    ...shadow.soft,
+  },
+  childLogoutText: {
+    fontFamily: type.bodyBold,
+    fontSize: 12,
+    color: colors.charcoal,
+  },
 });
+

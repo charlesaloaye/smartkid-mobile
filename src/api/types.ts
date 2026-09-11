@@ -10,13 +10,44 @@ export type User = {
 export type Child = {
   id: number;
   name: string;
-  whatsapp_number: string;
+  username?: string;
+  whatsapp_number?: string | null;
+  passcode?: string;
+  plain_password?: string;
   age?: number | null;
   grade?: string | null;
   stream?: string | null;
   subjects?: string[] | null;
   questions_count?: number;
   last_session?: string;
+};
+
+export type ChildLoginPayload = {
+  username: string;
+  password: string;
+};
+
+export type ChildLoginResponse = {
+  access_token: string;
+  token_type: string;
+  role: 'child';
+  child: Child;
+};
+
+export type ChildMeResponse = {
+  role: 'child';
+  child: Child;
+  parent: {
+    id: number;
+    name: string;
+    has_active_access: boolean;
+  };
+};
+
+export type ResetChildPasswordResponse = {
+  message: string;
+  username: string;
+  password: string;
 };
 
 export type DashboardResponse = {

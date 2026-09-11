@@ -23,9 +23,12 @@ try {
 } catch {}
 
 export default function LoginScreen({ navigation }: any) {
-  const { login, loginWithBiometrics, loginWithSocial } = useAuth();
+  const { login, loginChild, loginWithBiometrics, loginWithSocial } = useAuth();
+  const [loginMode, setLoginMode] = useState<'parent' | 'student'>('parent');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [studentUsername, setStudentUsername] = useState('');
+  const [studentPassword, setStudentPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [biometricType, setBiometricType] = useState('Face ID / Touch ID');
@@ -281,6 +284,22 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const onStudentSubmit = async () => {
+    if (!studentUsername || !studentPassword) {
+      showToast.error('Enter your student username and password to continue.', 'Missing Details');
+      return;
+    }
+    setLoading(true);
+    try {
+      await loginChild(studentUsername.trim(), studentPassword);
+      showToast.success('Welcome back, ready to learn!', 'Student Login');
+    } catch (e) {
+      showToast.error(extractErrorMessage(e), 'Login Failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onBiometricLogin = async () => {
     setLoading(true);
     try {
@@ -320,123 +339,135 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </View>
 
-        <Text style={styles.title}>Welcome back.</Text>
+        {/* Mode Switcher Tabs */}
+        <View style={styles.modeTabContainer}>
+          <Pressable
+            style={[styles.modeTab, loginMode === 'parent' && styles.modeTabActive]}
+            onPress={() => setLoginMode('parent')}
+          >
+            <Text style={[styles.modeTabText, loginMode === 'parent' && styles.modeTabTextActive]}>
+              👨‍👩‍👧 Parent Login
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.modeTab, loginMode === 'student' && styles.modeTabActive]}
+            onPress={() => setLoginMode('student')}
+          >
+            <Text style={[styles.modeTabText, loginMode === 'student' && styles.modeTabTextActive]}>
+              🎒 Student Login
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.title}>
+          {loginMode === 'parent' ? 'Welcome back.' : 'Hi Learner! 👋'}
+        </Text>
         <Text style={styles.subtitle}>
-          Log in to track your child's progress with Ada on WhatsApp.
+          {loginMode === 'parent'
+            ? "Log in to track your child's progress and manage family learning."
+            : 'Enter your username & password to start learning with Ada!'}
         </Text>
 
         {/* Main Light Glass Form Card */}
         <View style={styles.card}>
-          <TextField
-            label="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="name@example.com"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            isPassword
-            autoCapitalize="none"
-            placeholder="••••••••"
-          />
+          {loginMode === 'parent' ? (
+            <>
+              <TextField
+                label="Email Address"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="name@example.com"
+              />
+              <TextField
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                isPassword
+                autoCapitalize="none"
+                placeholder="••••••••"
+              />
 
-          {/* Forgot password link */}
-          <Pressable
-            style={styles.forgotRow}
-            onPress={() => navigation.navigate('ForgotPassword')}
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </Pressable>
-
-          <Button
-            label="Log in to Dashboard"
-            onPress={onSubmit}
-            loading={loading}
-            variant="amber"
-            style={{ marginTop: 4 }}
-          />
-
-          {/* Social login temporarily disabled — re-enable by removing the `false &&` */}
-          {false && (
-          <View style={styles.orDividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.orText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-          )}
-          {false && (
-          <View style={styles.socialButtonsRow}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialBtn,
-                pressed && { backgroundColor: '#F3F4F6', transform: [{ scale: 0.97 }] },
-                socialLoading === 'google' && { opacity: 0.7 },
-              ]}
-              onPress={onGoogleLogin}
-              disabled={!!socialLoading || loading}
-            >
-              {socialLoading === 'google' ? (
-                <Ionicons name="sync" size={18} color="#EA4335" />
-              ) : (
-                <Ionicons name="logo-google" size={18} color="#EA4335" />
-              )}
-              <Text style={styles.socialBtnText}>
-                {socialLoading === 'google' ? 'Signing in…' : 'Google'}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialBtn,
-                styles.appleBtn,
-                pressed && { opacity: 0.82, transform: [{ scale: 0.97 }] },
-                socialLoading === 'apple' && { opacity: 0.7 },
-              ]}
-              onPress={onAppleLogin}
-              disabled={!!socialLoading || loading}
-            >
-              {socialLoading === 'apple' ? (
-                <Ionicons name="sync" size={20} color="#FFFFFF" />
-              ) : (
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.appleBtnText}>
-                {socialLoading === 'apple' ? 'Signing in…' : 'Apple ID'}
-              </Text>
-            </Pressable>
-          </View>
-          )}
-
-          {hasBiometrics && (
-            <View style={styles.biometricSection}>
+              {/* Forgot password link */}
               <Pressable
-                style={({ pressed }) => [
-                  styles.biometricBtn,
-                  pressed && { backgroundColor: 'rgba(26, 95, 122, 0.12)' },
-                ]}
-                onPress={onBiometricLogin}
-                disabled={loading}
+                style={styles.forgotRow}
+                onPress={() => navigation.navigate('ForgotPassword')}
               >
-                <Icon name="sparkle" size={18} color={colors.teal} />
-                <Text style={styles.biometricBtnText}>Log in with {biometricType}</Text>
+                <Text style={styles.forgotText}>Forgot password?</Text>
               </Pressable>
-            </View>
+
+              <Button
+                label="Log in to Dashboard"
+                onPress={onSubmit}
+                loading={loading}
+                variant="amber"
+                style={{ marginTop: 4 }}
+              />
+
+              {hasBiometrics && (
+                <View style={styles.biometricSection}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.biometricBtn,
+                      pressed && { backgroundColor: 'rgba(26, 95, 122, 0.12)' },
+                    ]}
+                    onPress={onBiometricLogin}
+                    disabled={loading}
+                  >
+                    <Icon name="sparkle" size={18} color={colors.teal} />
+                    <Text style={styles.biometricBtnText}>Log in with {biometricType}</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              <TextField
+                label="Student Username"
+                value={studentUsername}
+                onChangeText={setStudentUsername}
+                autoCapitalize="none"
+                placeholder="e.g. tobiadeleke"
+              />
+              <TextField
+                label="Password / PIN"
+                value={studentPassword}
+                onChangeText={setStudentPassword}
+                isPassword
+                autoCapitalize="none"
+                placeholder="••••••••"
+              />
+
+              <Button
+                label="Start Learning with Ada 🚀"
+                onPress={onStudentSubmit}
+                loading={loading}
+                variant="teal"
+                style={{ marginTop: 10 }}
+              />
+
+              <View style={styles.studentHelpBox}>
+                <Icon name="sparkle" size={15} color={colors.amberDark} />
+                <Text style={styles.studentHelpText}>
+                  Need your login details? Ask your parent to check your profile credentials in the SmartKID app.
+                </Text>
+              </View>
+            </>
           )}
         </View>
 
         {/* Footer Navigation */}
-        <Pressable
-          style={styles.footer}
-          onPress={() => navigation.replace('Register')}
-        >
-          <Text style={styles.footerText}>
-            New to SmartKid Tutor? <Text style={styles.footerLink}>Create an account</Text>
-          </Text>
-        </Pressable>
+        {loginMode === 'parent' && (
+          <Pressable
+            style={styles.footer}
+            onPress={() => navigation.replace('Register')}
+          >
+            <Text style={styles.footerText}>
+              New to SmartKid Tutor? <Text style={styles.footerLink}>Create an account</Text>
+            </Text>
+          </Pressable>
+        )}
 
         {/* Trust Badge */}
         <View style={styles.trustRow}>
@@ -592,6 +623,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.teal,
   },
+  modeTabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: radii.pill,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTabActive: {
+    backgroundColor: '#FFFFFF',
+    ...shadow.soft,
+  },
+  modeTabText: {
+    fontFamily: type.bodySemi,
+    fontSize: 13,
+    color: colors.muted,
+  },
+  modeTabTextActive: {
+    fontFamily: type.bodyBold,
+    color: colors.charcoal,
+  },
+  studentHelpBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(217, 119, 6, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+  },
+  studentHelpText: {
+    flex: 1,
+    fontFamily: type.bodyMedium,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.amberDark,
+  },
   trustRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -607,3 +684,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+

@@ -13,11 +13,12 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import PremiumScreen from '../screens/profile/PremiumScreen';
 import ChildProgressScreen from '../screens/home/ChildProgressScreen';
+import TutorScreen from '../screens/tutor/TutorScreen';
 
 const Stack = createNativeStackNavigator();
 
 export function RootNavigator() {
-  const { isLoading, isAuthenticated, hasSeenOnboarding, authEntryScreen, user } = useAuth();
+  const { isLoading, isAuthenticated, hasSeenOnboarding, authEntryScreen, role, user, childUser } = useAuth();
 
   if (isLoading) {
     return (
@@ -55,6 +56,19 @@ export function RootNavigator() {
     );
   }
 
+  // If authenticated as a Child / Student, direct to Ada Tutor learning environment
+  if (isAuthenticated && role === 'child') {
+    return (
+      <Stack.Navigator key="child-main" screenOptions={{ headerShown: false }}>
+        <Stack.Screen
+          name="StudentTutor"
+          component={TutorScreen}
+          initialParams={{ childId: childUser?.id }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
   if (isAuthenticated && !user?.email_verified_at) {
     return (
       <Stack.Navigator key="verify-otp" screenOptions={{ headerShown: false }}>
@@ -72,3 +86,4 @@ export function RootNavigator() {
     </Stack.Navigator>
   );
 }
+

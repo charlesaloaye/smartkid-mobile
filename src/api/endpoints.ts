@@ -102,15 +102,38 @@ export async function fetchChildren() {
   return data;
 }
 
+export async function loginChild(payload: { username: string; password: string }) {
+  const { data } = await api.post<{ access_token: string; token_type: string; role: 'child'; child: Child }>(
+    '/child/login',
+    payload
+  );
+  return data;
+}
+
+export async function fetchCurrentChild() {
+  const { data } = await api.get<{ role: 'child'; child: Child; parent: any }>('/child/me');
+  return data;
+}
+
+export async function resetChildPassword(childId: number, password?: string) {
+  const { data } = await api.post<{ message: string; username: string; password: string }>(
+    `/children/${childId}/reset-password`,
+    password ? { password } : {}
+  );
+  return data;
+}
+
 export async function createChild(payload: {
   name: string;
-  whatsapp_number: string;
+  whatsapp_number?: string;
+  username?: string;
+  password?: string;
   age?: number;
   grade?: string;
   stream?: string;
   subjects?: string[];
 }) {
-  const { data } = await api.post<Child>('/children', payload);
+  const { data } = await api.post<Child & { plain_password?: string }>('/children', payload);
   return data;
 }
 
