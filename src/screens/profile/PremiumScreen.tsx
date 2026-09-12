@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Button';
@@ -82,6 +82,13 @@ export default function PremiumScreen({ navigation }: any) {
   };
 
   const handleCheckout = async (plan: PlanKey) => {
+    if (Platform.OS === 'ios') {
+      Alert.alert(
+        'Subscription Managed Online',
+        'SmartKid Tutor subscriptions are managed via our web portal. If your family has an existing subscription, it is automatically active on this device.'
+      );
+      return;
+    }
     setBusy(plan);
     try {
       const redirectUrl = Linking.createURL('payment-callback');
@@ -167,7 +174,9 @@ export default function PremiumScreen({ navigation }: any) {
       : `Renews ${formatDate(current_period_ends_at)}`;
   } else if (has_used_trial || status === 'past_due' || status === 'canceled') {
     statusTitle = status === 'past_due' ? 'Payment Failed' : 'No Active Plan';
-    statusSubtitle = 'Choose a plan below to bring Ada back online.';
+    statusSubtitle = Platform.OS === 'ios'
+      ? 'Manage your subscription on your parent web account.'
+      : 'Choose a plan below to bring Ada back online.';
   }
 
   return (
@@ -176,8 +185,14 @@ export default function PremiumScreen({ navigation }: any) {
         <Icon name="x" size={16} color={colors.charcoal} />
       </Pressable>
 
-      <Text style={styles.title}>Upgrade SmartKid Tutor</Text>
-      <Text style={styles.subtitle}>Choose the best plan for your family's learning journey.</Text>
+      <Text style={styles.title}>
+        {Platform.OS === 'ios' ? 'Subscription & Account Status' : 'Upgrade SmartKid Tutor'}
+      </Text>
+      <Text style={styles.subtitle}>
+        {Platform.OS === 'ios'
+          ? 'SmartKid Tutor multi-platform family access and learning overview.'
+          : "Choose the best plan for your family's learning journey."}
+      </Text>
 
       <Card style={styles.statusCard}>
         <View style={{ flex: 1 }}>
@@ -220,6 +235,11 @@ export default function PremiumScreen({ navigation }: any) {
           </View>
         ) : !has_used_trial ? (
           <Button label="Start 3-Day Free Trial" onPress={handleStartTrial} loading={busy === 'trial'} variant="amber" style={{ marginTop: 12 }} />
+        ) : Platform.OS === 'ios' ? (
+          <View style={styles.webManagedBadge}>
+            <Icon name="info" size={13} color={colors.muted} />
+            <Text style={styles.webManagedText}>Managed Online</Text>
+          </View>
         ) : (
           <Button label="Subscribe to Starter" onPress={() => handleCheckout('starter')} loading={busy === 'starter'} variant="amber" style={{ marginTop: 12 }} />
         )}
@@ -245,6 +265,11 @@ export default function PremiumScreen({ navigation }: any) {
           <View style={styles.currentPlanBadge}>
             <Icon name="check" size={13} color="#059669" />
             <Text style={styles.currentPlanText}>Current Plan</Text>
+          </View>
+        ) : Platform.OS === 'ios' ? (
+          <View style={styles.webManagedBadge}>
+            <Icon name="info" size={13} color={colors.muted} />
+            <Text style={styles.webManagedText}>Managed Online</Text>
           </View>
         ) : (
           <Button label="Get Family Plan" onPress={() => handleCheckout('family')} loading={busy === 'family'} variant="amber" style={{ marginTop: 12 }} />
@@ -276,10 +301,19 @@ export default function PremiumScreen({ navigation }: any) {
         />
       </View>
 
-      <View style={styles.trustRow}>
-        <Icon name="shield" size={13} color={colors.mutedLight} />
-        <Text style={styles.trustText}>Payments secured by Paystack — card, USSD & transfer.</Text>
-      </View>
+      {Platform.OS === 'ios' ? (
+        <View style={styles.iosInfoCard}>
+          <Icon name="shield" size={14} color={colors.teal} />
+          <Text style={styles.iosInfoText}>
+            Multi-Platform Sync: Subscriptions activated on smartkidtutor.ng automatically unlock access across all iOS and Android devices signed into this parent account.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.trustRow}>
+          <Icon name="shield" size={13} color={colors.mutedLight} />
+          <Text style={styles.trustText}>Payments secured by Paystack — card, USSD & transfer.</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -316,6 +350,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl, paddingVertical: 14,
   },
   currentPlanText: { fontFamily: type.bodyBold, fontSize: 12.5, color: '#059669', textTransform: 'uppercase', letterSpacing: 0.5 },
+  webManagedBadge: {
+    marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: 'rgba(31, 41, 55, 0.05)', borderWidth: 1, borderColor: 'rgba(31, 41, 55, 0.1)',
+    borderRadius: radii.xl, paddingVertical: 14,
+  },
+  webManagedText: { fontFamily: type.bodyBold, fontSize: 12.5, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  iosInfoCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(26, 95, 122, 0.06)', borderRadius: radii.md,
+    padding: 14, marginTop: 10, borderWidth: 1, borderColor: 'rgba(26, 95, 122, 0.12)'
+  },
+  iosInfoText: { fontFamily: type.bodyMedium, fontSize: 11.5, color: colors.teal, flexShrink: 1, lineHeight: 16 },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 7, justifyContent: 'center', marginTop: 12 },
   trustText: { fontFamily: type.bodyMedium, fontSize: 10.5, color: colors.mutedLight, flexShrink: 1, textAlign: 'center' },
 });

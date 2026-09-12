@@ -25,7 +25,7 @@
           }
         ]
       },
-      "buildNumber": "9"
+      "buildNumber": "11"
     },
     "android": {
       "package": "ng.smartkidtutor.app",

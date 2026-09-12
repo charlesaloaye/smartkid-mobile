@@ -137,13 +137,16 @@ In the version submission page under **App Review Information**:
 
 ### Reviewer Notes
 ```text
-SmartKid Tutor is an educational AI tutoring application for primary and junior secondary students, with a dedicated parent monitoring dashboard.
+SmartKid Tutor is an educational AI tutoring companion for primary and junior secondary school students, paired with a parent monitoring dashboard.
 
 Testing Instructions:
-1. Log in using the reviewer credentials provided above.
-2. Select 'Demo Child' to view the child's educational dashboard and progress metrics.
-3. Tap 'Tutor' or launch 'Voice Mode' to test the real-time AI voice conversation with Ada. (Microphone permission is requested solely to record the child's voice questions for speech-to-text tutor processing).
-4. Subscriptions and child profile settings can be inspected under the Profile tab.
+1. Sign in immediately using the reviewer credentials provided above.
+2. Select 'Demo Child' to view the student's dashboard, learning streak, and subject mastery.
+3. Tap 'Tutor' or launch 'Voice Mode' to experience the conversational Socratic tutor (Ada).
+   - In compliance with Guidelines 5.1.1(i) and 5.1.2(i), the app displays an explicit AI & Data Privacy Consent Modal before any student question, photo, or audio recording is transmitted to our third-party AI provider (OpenAI, L.L.C.).
+   - Microphone permission is requested exclusively to capture voice questions for speech-to-text tutoring.
+4. Profile & Multi-Platform Access:
+   - Consistent with Guideline 3.1.3(b), users with existing accounts can access their active family plans across web and mobile. All external web purchase flows and third-party payment gateways have been completely removed from the iOS build.
 ```
 
 ---

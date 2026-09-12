@@ -7,6 +7,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   PanResponder,
   Platform,
@@ -21,6 +22,7 @@ import appStorage from '../../utils/storage';
 import ImagePicker from '../../utils/imagePickerUtils';
 import { playAudioBase64Async, speakNigerian, stopSpeechAsync } from '../../utils/speechUtils';
 import { Icon } from '../../components/Icon';
+import { Button } from '../../components/Button';
 import { Pill } from '../../components/Pill';
 import { colors, radii, shadow, type } from '../../theme';
 import {
@@ -59,7 +61,36 @@ export default function TutorScreen({ navigation, route }: any) {
   const [insight, setInsight] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<number | string | null>(null);
+  const [aiConsentGranted, setAiConsentGranted] = useState<boolean | null>(null);
+  const [aiConsentModalOpen, setAiConsentModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    appStorage.getItem('smartkid_ai_consent_granted').then((val) => {
+      setAiConsentGranted(val === 'true');
+    });
+  }, []);
+
+  const checkAiConsent = (onGranted: () => void) => {
+    if (aiConsentGranted) {
+      onGranted();
+    } else {
+      setPendingAction(() => onGranted);
+      setAiConsentModalOpen(true);
+    }
+  };
+
+  const handleAcceptAiConsent = async () => {
+    await appStorage.setItem('smartkid_ai_consent_granted', 'true');
+    setAiConsentGranted(true);
+    setAiConsentModalOpen(false);
+    if (pendingAction) {
+      const act = pendingAction;
+      setPendingAction(null);
+      act();
+    }
+  };
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -202,6 +233,11 @@ export default function TutorScreen({ navigation, route }: any) {
   };
 
   const handleSend = async (overrideText?: string) => {
+    if (!aiConsentGranted) {
+      checkAiConsent(() => handleSend(overrideText));
+      return;
+    }
+
     const text = (typeof overrideText === 'string' ? overrideText : draft).trim();
     const imageUri = attachedImage;
 
@@ -279,7 +315,7 @@ export default function TutorScreen({ navigation, route }: any) {
   };
 
   const sendQuickReply = (text: string) => {
-    handleSend(text);
+    checkAiConsent(() => handleSend(text));
   };
 
   if (loading) {
@@ -499,7 +535,7 @@ export default function TutorScreen({ navigation, route }: any) {
               }, 150);
             }}
           />
-          <Pressable style={styles.micBtn} onPress={() => setVoiceOpen(true)} disabled={sending}>
+          <Pressable style={styles.micBtn} onPress={() => checkAiConsent(() => setVoiceOpen(true))} disabled={sending}>
             <Icon name="mic" size={16} color={colors.charcoal} />
           </Pressable>
           <Pressable
@@ -545,6 +581,77 @@ export default function TutorScreen({ navigation, route }: any) {
             sendVoice={(uri: string) => sendVoiceMessage(activeChild.id, uri)}
           />
         )}
+      </Modal>
+
+      {/* Third-Party AI Data Privacy & Parental Consent Modal */}
+      <Modal
+        visible={aiConsentModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAiConsentModalOpen(false)}
+      >
+        <View style={styles.consentOverlay}>
+          <View style={styles.consentCard}>
+            <View style={styles.consentIconBg}>
+              <Icon name="sparkle" size={24} color={colors.amberDark} />
+            </View>
+
+            <Text style={styles.consentHeader}>AI Learning & Data Privacy</Text>
+            <Text style={styles.consentSubtitle}>
+              SmartKid Tutor uses artificial intelligence to power your child's personalized learning sessions with Ada.
+            </Text>
+
+            <View style={styles.consentPointsBox}>
+              <View style={styles.consentRowItem}>
+                <View style={styles.consentDot} />
+                <Text style={styles.consentPointText}>
+                  <Text style={styles.consentPointBold}>Data Transmitted: </Text>
+                  Academic questions, curriculum topics, grade level, and voice recordings (when using Voice Mode) are sent to generate answers.
+                </Text>
+              </View>
+
+              <View style={styles.consentRowItem}>
+                <View style={styles.consentDot} />
+                <Text style={styles.consentPointText}>
+                  <Text style={styles.consentPointBold}>Third-Party AI Service: </Text>
+                  Data is securely processed by <Text style={styles.consentPointBold}>OpenAI, L.L.C.</Text> via encrypted connections.
+                </Text>
+              </View>
+
+              <View style={styles.consentRowItem}>
+                <View style={styles.consentDot} />
+                <Text style={styles.consentPointText}>
+                  <Text style={styles.consentPointBold}>Child Privacy Protection: </Text>
+                  Under NDPR and COPPA standards, child data is never sold, never used for advertising, and is not used to train third-party AI models.
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              style={styles.policyLinkRow}
+              onPress={() => Linking.openURL('https://smartkidtutor.ng/privacy-policy')}
+            >
+              <Text style={styles.policyLinkText}>Read Privacy Policy & NDPR Terms ↗</Text>
+            </Pressable>
+
+            <Button
+              label="I Agree & Continue"
+              variant="amber"
+              onPress={handleAcceptAiConsent}
+              style={{ marginTop: 14 }}
+            />
+
+            <Pressable
+              style={styles.consentDeclineBtn}
+              onPress={() => {
+                setAiConsentModalOpen(false);
+                setPendingAction(null);
+              }}
+            >
+              <Text style={styles.consentDeclineText}>Not Now</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -643,6 +750,98 @@ const styles = StyleSheet.create({
     fontFamily: type.bodyBold,
     fontSize: 12,
     color: colors.charcoal,
+  },
+  consentOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+  consentCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    ...shadow.card,
+  },
+  consentIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  consentHeader: {
+    fontFamily: type.displaySemi,
+    fontSize: 18,
+    color: colors.charcoal,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  consentSubtitle: {
+    fontFamily: type.bodyMedium,
+    fontSize: 12.5,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  consentPointsBox: {
+    backgroundColor: colors.cream,
+    borderRadius: radii.lg,
+    padding: 14,
+    width: '100%',
+    gap: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  consentRowItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  consentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.amberDark,
+    marginTop: 6,
+  },
+  consentPointText: {
+    flex: 1,
+    fontFamily: type.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.charcoal,
+  },
+  consentPointBold: {
+    fontFamily: type.bodyBold,
+    color: colors.charcoal,
+  },
+  policyLinkRow: {
+    paddingVertical: 6,
+    marginBottom: 6,
+  },
+  policyLinkText: {
+    fontFamily: type.bodyBold,
+    fontSize: 12,
+    color: colors.teal,
+    textDecorationLine: 'underline',
+  },
+  consentDeclineBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  consentDeclineText: {
+    fontFamily: type.bodyBold,
+    fontSize: 13,
+    color: colors.mutedLight,
   },
 });
 
