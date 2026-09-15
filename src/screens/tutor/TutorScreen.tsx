@@ -3,10 +3,10 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   PanResponder,
@@ -57,23 +57,28 @@ export default function TutorScreen({ navigation, route }: any) {
   const [draft, setDraft] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [imagePickerModalOpen, setImagePickerModalOpen] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [sendOnEnter, setSendOnEnter] = useState(true);
   const [insight, setInsight] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<number | string | null>(null);
   const [aiConsentGranted, setAiConsentGranted] = useState<boolean | null>(null);
+  const aiConsentGrantedRef = useRef(false);
   const [aiConsentModalOpen, setAiConsentModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const listRef = useRef<FlatList>(null);
+  const keyboardPadding = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     appStorage.getItem('smartkid_ai_consent_granted').then((val) => {
-      setAiConsentGranted(val === 'true');
+      const granted = val === 'true';
+      setAiConsentGranted(granted);
+      aiConsentGrantedRef.current = granted;
     });
   }, []);
 
   const checkAiConsent = (onGranted: () => void) => {
-    if (aiConsentGranted) {
+    if (aiConsentGrantedRef.current || aiConsentGranted) {
       onGranted();
     } else {
       setPendingAction(() => onGranted);
@@ -82,25 +87,63 @@ export default function TutorScreen({ navigation, route }: any) {
   };
 
   const handleAcceptAiConsent = async () => {
-    await appStorage.setItem('smartkid_ai_consent_granted', 'true');
+    aiConsentGrantedRef.current = true;
     setAiConsentGranted(true);
     setAiConsentModalOpen(false);
+    try {
+      await appStorage.setItem('smartkid_ai_consent_granted', 'true');
+    } catch {}
     if (pendingAction) {
       const act = pendingAction;
       setPendingAction(null);
-      act();
+      setTimeout(() => {
+        act();
+      }, 50);
     }
   };
 
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const sub = Keyboard.addListener(showEvent, () => {
+    const onKeyboardShow = (e: any) => {
+      setKeyboardVisible(true);
+      const keyboardHeight = e?.endCoordinates?.height || 0;
+      const duration = Platform.OS === 'ios' ? (e?.duration || 250) : 100;
+
+      Animated.timing(keyboardPadding, {
+        toValue: keyboardHeight,
+        duration,
+        useNativeDriver: false,
+      }).start();
+
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
-    return () => sub.remove();
-  }, []);
+      }, Platform.OS === 'ios' ? 60 : 100);
+    };
+
+    const onKeyboardHide = (e: any) => {
+      setKeyboardVisible(false);
+      const duration = Platform.OS === 'ios' ? (e?.duration || 250) : 100;
+
+      Animated.timing(keyboardPadding, {
+        toValue: 0,
+        duration,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      onKeyboardShow
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      onKeyboardHide
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardPadding]);
 
   useEffect(() => {
     appStorage.getItem('smartkid_send_on_enter').then((val) => {
@@ -178,7 +221,7 @@ export default function TutorScreen({ navigation, route }: any) {
         const res = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           allowsEditing: true,
-          quality: 0.5, // Minified/optimized compression for fast upload & loading
+          quality: 0.7,
         });
         if (!res.canceled && res.assets?.[0]?.uri) {
           setAttachedImage(res.assets[0].uri);
@@ -195,7 +238,7 @@ export default function TutorScreen({ navigation, route }: any) {
         const res = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: true,
-          quality: 0.5, // Minified/optimized compression for fast upload & loading
+          quality: 0.7,
         });
         if (!res.canceled && res.assets?.[0]?.uri) {
           setAttachedImage(res.assets[0].uri);
@@ -233,7 +276,7 @@ export default function TutorScreen({ navigation, route }: any) {
   };
 
   const handleSend = async (overrideText?: string) => {
-    if (!aiConsentGranted) {
+    if (!aiConsentGrantedRef.current && !aiConsentGranted) {
       checkAiConsent(() => handleSend(overrideText));
       return;
     }
@@ -343,67 +386,64 @@ export default function TutorScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={['top']}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Ada Tutor</Text>
-          <Text style={styles.headerSub}>
-            {activeChild?.name ? `${activeChild.name}${activeChild?.grade ? ` · ${activeChild.grade}` : ''}` : 'Personalized Learning'}
-          </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.cream }} edges={['top', 'left', 'right']}>
+      <Animated.View style={{ flex: 1, paddingBottom: keyboardPadding }}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Ada Tutor</Text>
+            <Text style={styles.headerSub}>
+              {activeChild?.name ? `${activeChild.name}${activeChild?.grade ? ` · ${activeChild.grade}` : ''}` : 'Personalized Learning'}
+            </Text>
+          </View>
+          {role === 'child' ? (
+            <Pressable
+              style={styles.childLogoutBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Log out',
+                  `Are you sure you want to log out of ${activeChild?.name || 'student'}'s account?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Log Out', style: 'destructive', onPress: logout },
+                  ]
+                );
+              }}
+            >
+              <Icon name="chevron-left" size={14} color={colors.charcoal} />
+              <Text style={styles.childLogoutText}>Log out</Text>
+            </Pressable>
+          ) : (
+            <Pill label="Synced with WhatsApp" tone="sage" icon="whatsapp" />
+          )}
         </View>
-        {role === 'child' ? (
-          <Pressable
-            style={styles.childLogoutBtn}
-            onPress={() => {
-              Alert.alert(
-                'Log out',
-                `Are you sure you want to log out of ${activeChild?.name || 'student'}'s account?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Log Out', style: 'destructive', onPress: logout },
-                ]
+
+        {role !== 'child' && children.length > 1 && (
+          <FlatList
+            horizontal
+            data={children}
+            keyExtractor={(c) => String(c.id)}
+            showsHorizontalScrollIndicator={false}
+            style={styles.childRow}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}
+            renderItem={({ item }) => {
+              const selected = item.id === activeChild?.id;
+              return (
+                <Pressable
+                  style={[styles.childChip, selected && styles.childChipSelected]}
+                  onPress={() => setActiveChild(item)}
+                >
+                  <Text style={[styles.childChipText, selected && styles.childChipTextSelected]}>{item.name}</Text>
+                </Pressable>
               );
             }}
-          >
-            <Icon name="chevron-left" size={14} color={colors.charcoal} />
-            <Text style={styles.childLogoutText}>Log out</Text>
-          </Pressable>
-        ) : (
-          <Pill label="Synced with WhatsApp" tone="sage" icon="whatsapp" />
+          />
         )}
-      </View>
 
-      {role !== 'child' && children.length > 1 && (
-        <FlatList
-          horizontal
-          data={children}
-          keyExtractor={(c) => String(c.id)}
-          showsHorizontalScrollIndicator={false}
-          style={styles.childRow}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}
-          renderItem={({ item }) => {
-            const selected = item.id === activeChild?.id;
-            return (
-              <Pressable
-                style={[styles.childChip, selected && styles.childChipSelected]}
-                onPress={() => setActiveChild(item)}
-              >
-                <Text style={[styles.childChipText, selected && styles.childChipTextSelected]}>{item.name}</Text>
-              </Pressable>
-            );
-          }}
-        />
-      )}
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
-      >
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(m) => String(m.id)}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.messages}
           onContentSizeChange={scrollToEnd}
           keyboardShouldPersistTaps="handled"
@@ -478,29 +518,71 @@ export default function TutorScreen({ navigation, route }: any) {
           }}
         />
 
-        {/* Image Attachment Preview Bar */}
+        {/* Homework Photo Attachment Preview Card */}
         {attachedImage && (
-          <View style={styles.previewBar}>
-            <View style={styles.previewContent}>
-              <Image source={{ uri: attachedImage }} style={styles.previewThumb} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.previewTitle}>Homework Photo Attached</Text>
-                <Text style={styles.previewSub}>Ada will analyze the question, diagram, or handwriting.</Text>
+          <View style={styles.previewCard}>
+            <View style={styles.previewCardHeader}>
+              <View style={styles.previewImageContainer}>
+                <Image source={{ uri: attachedImage }} style={styles.previewImage} resizeMode="cover" />
+                <Pressable
+                  onPress={() => setAttachedImage(null)}
+                  style={styles.previewCloseBtn}
+                  hitSlop={8}
+                  accessibilityLabel="Remove photo"
+                >
+                  <Icon name="x" size={12} color={colors.white} />
+                </Pressable>
+              </View>
+              <View style={styles.previewInfo}>
+                <View style={styles.previewTag}>
+                  <Icon name="camera" size={11} color={colors.teal} />
+                  <Text style={styles.previewTagText}>Photo Ready</Text>
+                </View>
+                <Text style={styles.previewCardTitle}>Homework Photo Attached</Text>
+                <Text style={styles.previewCardSub} numberOfLines={2}>
+                  Ada will analyze the question or handwriting and help solve it!
+                </Text>
               </View>
             </View>
-            <Pressable onPress={() => setAttachedImage(null)} style={styles.previewRemoveBtn}>
-              <Icon name="x" size={14} color={colors.charcoal} />
-            </Pressable>
+            <View style={styles.previewActions}>
+              <Pressable
+                style={styles.previewChangeBtn}
+                onPress={openImagePickerOptions}
+                disabled={sending}
+              >
+                <Icon name="camera" size={13} color={colors.charcoal} />
+                <Text style={styles.previewChangeText}>Retake</Text>
+              </Pressable>
+              <Pressable
+                style={styles.previewPrimarySendBtn}
+                onPress={() => handleSend()}
+                disabled={sending}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <>
+                    <Text style={styles.previewPrimarySendText}>Send Photo to Ada</Text>
+                    <Icon name="arrow-right" size={14} color={colors.white} />
+                  </>
+                )}
+              </Pressable>
+            </View>
           </View>
         )}
 
-        <View style={styles.inputBar}>
-          <Pressable style={styles.toolBtn} onPress={openImagePickerOptions} disabled={sending}>
-            <Icon name="camera" size={17} color={colors.teal} />
+        <View
+          style={[
+            styles.inputBar,
+            { paddingBottom: keyboardVisible ? 10 : Math.max(insets.bottom, 12) },
+          ]}
+        >
+          <Pressable style={styles.toolBtn} onPress={openImagePickerOptions} disabled={sending} accessibilityLabel="Take or choose photo">
+            <Icon name="camera" size={18} color={colors.teal} />
           </Pressable>
           <TextInput
             style={styles.input}
-            placeholder={attachedImage ? "Add an optional note…" : "Ask Ada anything…"}
+            placeholder={attachedImage ? "Add an optional question or note…" : "Ask Ada anything…"}
             placeholderTextColor={colors.mutedLight}
             value={draft}
             onChangeText={(val) => {
@@ -535,18 +617,23 @@ export default function TutorScreen({ navigation, route }: any) {
               }, 150);
             }}
           />
-          <Pressable style={styles.micBtn} onPress={() => checkAiConsent(() => setVoiceOpen(true))} disabled={sending}>
+          <Pressable style={styles.micBtn} onPress={() => checkAiConsent(() => setVoiceOpen(true))} disabled={sending} accessibilityLabel="Voice mode">
             <Icon name="mic" size={16} color={colors.charcoal} />
           </Pressable>
           <Pressable
-            style={[styles.sendBtn, (!draft.trim() && !attachedImage) && styles.sendBtnDisabled]}
+            style={[
+              styles.sendBtn,
+              (!draft.trim() && !attachedImage) && styles.sendBtnDisabled,
+              (Boolean(draft.trim()) || Boolean(attachedImage)) && styles.sendBtnActive,
+            ]}
             onPress={() => handleSend()}
             disabled={sending || (!draft.trim() && !attachedImage)}
+            accessibilityLabel="Send message"
           >
             {sending ? <ActivityIndicator size="small" color={colors.white} /> : <Icon name="arrow-right" size={15} color={colors.white} />}
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       {/* Android Fallback Picker Modal */}
       <Modal visible={imagePickerModalOpen} transparent animationType="fade" onRequestClose={() => setImagePickerModalOpen(false)}>
@@ -702,30 +789,136 @@ const styles = StyleSheet.create({
   imageWrap: { marginBottom: 8, borderRadius: 10, overflow: 'hidden' },
   bubbleImage: { width: 200, height: 140, borderRadius: 8, backgroundColor: '#E5E7EB' },
 
-  previewBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F3F4F6', paddingHorizontal: 14, paddingVertical: 8,
-    borderTopWidth: 1, borderTopColor: colors.border,
+  previewCard: {
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    ...shadow.soft,
   },
-  previewContent: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  previewThumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#D1D5DB' },
-  previewTitle: { fontFamily: type.bodyBold, fontSize: 12, color: colors.charcoal },
-  previewSub: { fontFamily: type.body, fontSize: 10.5, color: colors.mutedLight },
-  previewRemoveBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  previewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  previewImageContainer: {
+    position: 'relative',
+    width: 62,
+    height: 62,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: colors.amber,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  previewCloseBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInfo: {
+    flex: 1,
+  },
+  previewTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(26,95,122,0.08)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    marginBottom: 3,
+  },
+  previewTagText: {
+    fontFamily: type.bodyBold,
+    fontSize: 10.5,
+    color: colors.teal,
+  },
+  previewCardTitle: {
+    fontFamily: type.displaySemi,
+    fontSize: 13.5,
+    color: colors.charcoal,
+  },
+  previewCardSub: {
+    fontFamily: type.body,
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 1,
+    lineHeight: 15,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  previewChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.cream,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  previewChangeText: {
+    fontFamily: type.bodyBold,
+    fontSize: 12,
+    color: colors.charcoal,
+  },
+  previewPrimarySendBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.amber,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+    ...shadow.soft,
+  },
+  previewPrimarySendText: {
+    fontFamily: type.bodyBold,
+    fontSize: 13,
+    color: colors.white,
+  },
 
   inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    paddingHorizontal: 14, paddingVertical: 10, backgroundColor: colors.white,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   toolBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(26,95,122,0.08)', alignItems: 'center', justifyContent: 'center' },
   input: {
-    flex: 1, maxHeight: 100, backgroundColor: colors.cream, borderRadius: radii.pill,
-    paddingHorizontal: 15, paddingVertical: 10, fontFamily: type.body, fontSize: 13.5, color: colors.charcoal,
+    flex: 1, minHeight: 40, maxHeight: 100, backgroundColor: colors.cream, borderRadius: radii.pill,
+    paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 10 : 8, fontFamily: type.body, fontSize: 13.5, color: colors.charcoal,
   },
   micBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' },
   sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.5 },
+  sendBtnActive: { opacity: 1, backgroundColor: colors.amber },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 12 },
