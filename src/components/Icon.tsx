@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowDownCircle,
   ArrowRight,
   BarChart2,
   Bell,
@@ -50,7 +51,7 @@ export type IconName =
   | 'eye' | 'eye-off' | 'alert-circle' | 'check-circle' | 'info' | 'alert-triangle'
   | 'play' | 'pause' | 'volume' | 'envelope'
   | 'book-open' | 'trophy' | 'trending-up'
-  | 'camera' | 'image' | 'trash' | 'send';
+  | 'camera' | 'image' | 'trash' | 'send' | 'download';
 
 type Props = {
   name: IconName;
@@ -61,6 +62,8 @@ type Props = {
 
 export function Icon({ name, size = 20, color = '#1F2937', strokeWidth = 2 }: Props) {
   switch (name) {
+    case 'download':
+      return <ArrowDownCircle size={size} color={color} strokeWidth={strokeWidth} />;
     case 'camera':
       return <Camera size={size} color={color} strokeWidth={strokeWidth} />;
     case 'image':
