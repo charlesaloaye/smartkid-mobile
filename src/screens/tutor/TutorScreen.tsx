@@ -468,7 +468,23 @@ export default function TutorScreen({ navigation, route }: any) {
             />
           }
           ListFooterComponent={
-            !sending && messages.length > 0 && messages[messages.length - 1].sender === 'ai' ? (
+            sending ? (
+              <View style={styles.thinkingContainer}>
+                <View style={styles.thinkingBubble}>
+                  <View style={styles.thinkingHeader}>
+                    <Icon name="chat" size={14} color={colors.teal} />
+                    <Text style={styles.thinkingTitle}>Ada is thinking & reviewing…</Text>
+                    <ActivityIndicator size="small" color={colors.teal} style={{ marginLeft: 4 }} />
+                  </View>
+                  <View style={styles.thinkingSubRow}>
+                    <Icon name="sparkle" size={12} color={colors.amberDark} />
+                    <Text style={styles.thinkingSub}>
+                      Take a moment to reflect and consider what you already know
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : !sending && messages.length > 0 && messages[messages.length - 1].sender === 'ai' ? (
               <View style={styles.quickReplies}>
                 {QUICK_REPLIES.map((q) => (
                   <Pressable key={q} style={styles.quickChip} onPress={() => sendQuickReply(q)}>
@@ -766,6 +782,45 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, marginBottom: 14,
   },
   memoryChipText: { flex: 1, fontFamily: type.body, fontSize: 12, lineHeight: 17, color: colors.amberDark },
+
+  thinkingContainer: {
+    paddingVertical: 6,
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  thinkingBubble: {
+    backgroundColor: 'rgba(26,95,122,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(26,95,122,0.15)',
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxWidth: '85%',
+  },
+  thinkingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  thinkingTitle: {
+    fontFamily: type.bodyBold,
+    fontSize: 12.5,
+    color: colors.teal,
+  },
+  thinkingSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 5,
+  },
+  thinkingSub: {
+    flexShrink: 1,
+    fontFamily: type.body,
+    fontSize: 11,
+    color: colors.muted,
+    lineHeight: 15,
+  },
 
   quickReplies: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 },
   quickChip: {
